@@ -10,7 +10,11 @@ const Nav = () => {
     // { label: '', href: ''},
   ]
   return (
-    <nav className='sticky top-0 z-50 flex items-center justify-around p-6 text-l border-b-4 border-green-500 shadow-lg font-medium bg-white'>
+    // <nav className='sticky top-0 z-50 flex items-center justify-around p-6 text-l border-b-4 border-green-500 shadow-lg font-medium bg-white'>
+    <nav className="
+        sticky top-0 z-50 flex items-center justify-around p-6 text-l font-medium bg-white shadow-lg relative after:absolute after:bottom-0 after:left-0 after:h-1 after:w-full after:bg-gradient-to-r after:from-green-400 after:via-emerald-400 after:to-green-600
+      ">
+
       <Link href='/' className='text-2xl text-black'>Tummer</Link>
       <ul className='space-x-6'>
         {links.map(link => <Link key={link.href} href={link.href} className={classnames({
