@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@radix-ui/themes": "^3.3.0",
+    "@tabler/icons": "^3.36.1",
+    "@tabler/icons-react": "^3.36.1",
     "classnames": "^2.5.1",
     "next": "16.1.6",
     "react": "19.2.3",
