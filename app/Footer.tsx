@@ -8,16 +8,16 @@ const Footer = () => {
             <div className='flex flex-col items-start space-y-2'>
                 <h1 className='text-3xl text-black font-medium flex items-center gap-2'>Tummer <IconLeaf size={30}></IconLeaf></h1>
                 <p className='font-medium text-lg'>Make your health a priority</p>
-                <button className='bg-green-600 p-2 rounded-2xl text-white font-medium cursor-pointer hover:bg-green-700 transition-all shadow-lg'>Begin Tracking</button>
+                <a href='/signup' className='bg-green-600 p-2 rounded-2xl text-white font-medium cursor-pointer hover:bg-green-700 transition-all shadow-lg'>Begin Tracking</a>
             </div>
 
             <div className='flex justify-around w-1/5'>
                 <div>
                     <h1 className='font-semibold'>Join</h1>
-                    <ul>
-                        <li className='hover:text-green-700 transition-all cursor-pointer'>Sign up</li>
-                        <li className='hover:text-green-700 transition-all cursor-pointer'>Login</li>
-                        <li className='hover:text-green-700 transition-all cursor-pointer'>Support</li>
+                    <ul className='flex flex-col'>
+                        <a href='/signup' className='hover:text-green-700 transition-all cursor-pointer'>Sign up</a>
+                        <a href='/login' className='hover:text-green-700 transition-all cursor-pointer'>Login</a>
+                        <a href='/support' className='hover:text-green-700 transition-all cursor-pointer'>Support</a>
                     </ul>
                 </div>
                 <div className='flex flex-col items-center text-center w-1/2'>

@@ -1,13 +1,17 @@
 import { Button } from "@radix-ui/themes";
 import { IconStethoscope, IconUsersGroup, IconCompass } from '@tabler/icons-react';
+import Nav from "./Nav";
+import Footer from "./Footer";
 
 export default function Home() {
   return (
+    <>
+    <Nav></Nav>
     <div className="flex items-center justify-center mt-15 flex-col gap-10">
       <div className="flex items-center w-5/6 rounded-2xl flex-col space-y-10 p-10">
         <h1 className="text-5xl font-bold">Turn daily choices into long-term results</h1>
         <p className="text-xl font-medium">From meal planning to tolerance tracking and progress insights, everything you need to support healthier habits — all in one place</p>
-        <button className="bg-green-600 hover:bg-green-800 text-white p-3 text-lg rounded-xl font-medium cursor-pointer transition-all shadow-lg">Start For Free</button>
+        <a href='/signup' className="bg-green-600 hover:bg-green-800 text-white p-3 text-lg rounded-xl font-medium cursor-pointer transition-all shadow-lg">Start For Free</a>
         <ul className="flex space-x-3">
           <li>Always Free</li>
           <li>No Credit Card Required</li>
@@ -42,9 +46,9 @@ export default function Home() {
             </div>
           </div>
 
-          <button className="self-center bg-green-600 hover:bg-green-800 text-white p-3 text-lg rounded-xl font-medium cursor-pointer transition-all shadow-lg">
+          <a href="/signup" className="self-center bg-green-600 hover:bg-green-800 text-white p-3 text-lg rounded-xl font-medium cursor-pointer transition-all shadow-lg">
             Start Logging Today
-          </button>
+          </a>
         </div>
       </div>
 
@@ -88,7 +92,7 @@ export default function Home() {
               <li>Add daily notes</li>
               <li>Community Support (Coming Soon)</li>
             </ul>
-            <button className="mt-auto bg-green-600 hover:bg-green-800 text-white p-2 text-base rounded-xl font-medium transition-all shadow-md cursor-pointer">Start Now</button>
+            <a href="/signup" className="mt-auto bg-green-600 hover:bg-green-800 text-white p-2 text-base rounded-xl font-medium transition-all shadow-md cursor-pointer">Start Now</a>
           </div>
 
           <div className="bg-white p-5 rounded-2xl border-green-500 border-3 flex flex-col space-y-5 shadow-xl">
@@ -121,5 +125,7 @@ export default function Home() {
         </div>
       </div>
     </div>
+    <Footer></Footer>
+    </>
   );
 }
