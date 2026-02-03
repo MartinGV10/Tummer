@@ -116,7 +116,7 @@ const Signup = () => {
   return (
     <div className='min-h-screen flex flex-col items-center justify-center space-y-7 bg-gray-100'>
       <div className='w-full max-w-lg space-y-4 p-10 box-content bg-green-50 shadow-lg rounded-2xl'>
-        <h1 className='text-3xl font-semibold text-center text-green-600 flex justify-center items-center gap-2'>Tummer <IconLeaf size={30}></IconLeaf></h1>
+        <h1 className='text-3xl font-medium text-center text-green-600 flex justify-center items-center gap-2'>Tummer <IconLeaf size={30}></IconLeaf></h1>
         <h1 className='text-2xl font-semibold text-center'>Create an Account</h1>
 
         {error && (
@@ -129,7 +129,7 @@ const Signup = () => {
             <input type="text" placeholder='First Name' value={firstname} onKeyDown={e => e.key === 'Enter' && handleSignup()} onChange={e => setFirstname(e.target.value)} className='shadow-lg w-full bg-gray-50 border-2 rounded-lg p-2 font-medium border-green-600'/>
             <input type="text" placeholder='Last Name' value={lastname} onKeyDown={e => e.key === 'Enter' && handleSignup()} onChange={e => setLastname(e.target.value)} className='shadow-lg w-full bg-gray-50 border-2 rounded-lg p-2 font-medium border-green-600'/>
             <select value={conditionId} onChange={e => setConditionId(e.target.value)} className='shadow-lg w-full bg-gray-50 border-2 rounded-lg p-2 font-medium border-green-600'>
-              <option value="">No condition / prefer not to say</option>
+              <option value="">Select a Condition</option>
                 {conditions.map(cond => (
                   <option key={cond.id} value={cond.id}>{cond.name}</option>
                 ))}
