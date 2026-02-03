@@ -1,9 +1,8 @@
 'use client'
 import React from 'react'
 import { IconLeaf } from '@tabler/icons-react'
-import classnames from 'classnames'
 import Link from 'next/link'
-import { Avatar, DropdownMenu, Button } from '@radix-ui/themes'
+import { Avatar, DropdownMenu } from '@radix-ui/themes'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 
@@ -48,11 +47,15 @@ const UserNav: React.FC<UserNavProps> = ({ profile }) => {
       <Link href='/dashboard' className='text-2xl flex gap-2 font-medium items-center'>Tummer <IconLeaf size={30}></IconLeaf></Link>
 
       <ul className='flex items-center justify-center gap-2'>
-        {links.map(link => <Link key={link.href} href={link.href} className={classnames({
+        {links.map(link => <Link key={link.href} href={link.href} className='
+          cursor-pointer hover:text-green-800 transition-all p-3 rounded-2xl text-black
+        '>{link.label}</Link>)}
+
+        {/* {classnames({
           'bg-green-600 hover:bg-green-800 text-white': link.href === '/signup',
           'hover:text-green-800': link.href === '/login',
           'p-3 rounded-2xl transition-all text-black': true
-        })}>{link.label}</Link>)}
+        })} */}
 
         <div>
           <DropdownMenu.Root>
