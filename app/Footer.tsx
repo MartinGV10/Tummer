@@ -1,12 +1,12 @@
 import React from 'react'
-import { IconBrandGithub, IconBrandLinkedin, IconMail } from '@tabler/icons-react';
+import { IconBrandGithub, IconBrandLinkedin, IconMail, IconLeaf } from '@tabler/icons-react';
 
 const Footer = () => {
   return (
     <footer className='flex flex-col items-center justify-around bg-green-50 border-t-4 border-t-green-300 space-y-5'>
         <div className='flex justify-around w-full mt-5 p-5'>
             <div className='flex flex-col items-start space-y-2'>
-                <h1 className='text-3xl text-black font-medium'>Tummer</h1>
+                <h1 className='text-3xl text-black font-medium flex items-center gap-2'>Tummer <IconLeaf size={30}></IconLeaf></h1>
                 <p className='font-medium text-lg'>Make your health a priority</p>
                 <button className='bg-green-600 p-2 rounded-2xl text-white font-medium cursor-pointer hover:bg-green-700 transition-all shadow-lg'>Begin Tracking</button>
             </div>

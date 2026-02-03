@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import React from 'react'
 import classnames from 'classnames'
+import { IconLeaf } from '@tabler/icons-react'
 
 const Nav = () => {
   const links = [
@@ -15,7 +16,7 @@ const Nav = () => {
         sticky top-0 z-50 flex items-center justify-around p-6 text-l font-medium bg-white shadow-lg relative after:absolute after:bottom-0 after:left-0 after:h-1 after:w-full after:bg-gradient-to-r after:from-green-400 after:via-emerald-400 after:to-green-600
       ">
 
-      <Link href='/' className='text-2xl text-black'>Tummer</Link>
+      <Link href='/' className='text-2xl flex gap-2 font-semibold itesm-center'>Tummer <IconLeaf size={30}></IconLeaf></Link>
       <ul className='space-x-6'>
         {links.map(link => <Link key={link.href} href={link.href} className={classnames({
           'bg-green-600 hover:bg-green-800 text-white': link.href === '/signup',
