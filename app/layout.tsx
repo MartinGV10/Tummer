@@ -25,9 +25,9 @@ export default function RootLayout({
       <body className={`${figtree.className} antialiased `}>
       {/* <Theme accentColor="grass" radius="large"> */}
         {/* <ThemePanel></ThemePanel> */}
-        <Nav/>
+        {/* <Nav/> */}
         <main>{children}</main>
-        <Footer />
+        {/* <Footer /> */}
       {/* </Theme> */}
       </body>
     </html>
