@@ -23,12 +23,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${figtree.className} antialiased `}>
-      {/* <Theme accentColor="grass" radius="large"> */}
+      <Theme accentColor="grass" radius="large">
         {/* <ThemePanel></ThemePanel> */}
-        {/* <Nav/> */}
         <main>{children}</main>
-        {/* <Footer /> */}
-      {/* </Theme> */}
+      </Theme>
       </body>
     </html>
   );
