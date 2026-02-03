@@ -13,10 +13,10 @@ const Nav = () => {
   return (
     // <nav className='sticky top-0 z-50 flex items-center justify-around p-6 text-l border-b-4 border-green-500 shadow-lg font-medium bg-white'>
     <nav className="
-        sticky top-0 z-50 flex items-center justify-around p-6 text-l font-medium bg-white shadow-lg relative after:absolute after:bottom-0 after:left-0 after:h-1 after:w-full after:bg-gradient-to-r after:from-green-400 after:via-emerald-400 after:to-green-600
+        sticky top-0 z-50 flex items-center justify-around p-6 text-l font-medium bg-white shadow-lg after:absolute after:bottom-0 after:left-0 after:h-1 after:w-full after:bg-linear-to-r after:from-green-400 after:via-emerald-400 after:to-green-600
       ">
 
-      <Link href='/' className='text-2xl flex gap-2 font-semibold itesm-center'>Tummer <IconLeaf size={30}></IconLeaf></Link>
+      <Link href='/' className='text-2xl flex gap-2 font-medium items-center'>Tummer <IconLeaf size={30}></IconLeaf></Link>
       <ul className='space-x-6'>
         {links.map(link => <Link key={link.href} href={link.href} className={classnames({
           'bg-green-600 hover:bg-green-800 text-white': link.href === '/signup',
