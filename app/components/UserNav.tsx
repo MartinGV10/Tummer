@@ -26,7 +26,7 @@ const UserNav: React.FC<UserNavProps> = ({ profile }) => {
   ]
   return (
     <nav className="
-        sticky top-0 z-50 flex items-center justify-around p-6 text-l font-medium bg-white shadow-lg relative after:absolute after:bottom-0 after:left-0 after:h-1 after:w-full after:bg-gradient-to-r after:from-green-400 after:via-emerald-400 after:to-green-600
+        sticky top-0 z-50 flex items-center justify-around p-6 text-l font-medium bg-white shadow-lg after:absolute after:bottom-0 after:left-0 after:h-1 after:w-full after:bg-linear-to-r after:from-green-400 after:via-emerald-400 after:to-green-600
       ">
 
       <Link href='/dashboard' className='text-2xl flex gap-2 font-medium items-center'>Tummer <IconLeaf size={30}></IconLeaf></Link>
