@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import UserNav from '../components/UserNav'
+import { ProfileProvider } from '@/src/context/ProfileContext'
 
 type Profile = {
   first_name: string
@@ -93,9 +94,11 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <UserNav profile={profile} />
-      <main>{children}</main>
-    </div>
+    <ProfileProvider profile={profile}>
+      <div className="min-h-screen bg-gray-100">
+        <UserNav profile={profile} />
+        <main>{children}</main>
+      </div>
+    </ProfileProvider>
   )
 }
