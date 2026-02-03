@@ -13,15 +13,15 @@ const Login = () => {
 
   const router = useRouter()
 
-  // useEffect(() => {
-  //   const checkSession = async () => {
-  //     const { data } = await supabase.auth.getSession()
-  //     if (data.session) {
-  //       router.push('/dashboard')
-  //     }
-  //   }
-  //   checkSession()
-  // }, [router])
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession()
+      if (data.session) {
+        router.push('/dashboard')
+      }
+    }
+    checkSession()
+  }, [router])
 
   const handleLogin = () => {
     if (!email || !password) {
