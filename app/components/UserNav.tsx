@@ -20,9 +20,10 @@ type UserNavProps = {
 
 const UserNav: React.FC<UserNavProps> = ({ profile }) => {
   const links = [
-    { label: 'Track Meals', href: '/track'},
+    { label: 'Track Meals', href: '/trackMeals'},
+    { label: 'Track Bowels', href: '/trackBowels'},
     { label: 'Log Foods', href: '/log'},
-    { label: 'Insights', href: '/insights'},
+    { label: 'Support', href: '/support'},
     { label: 'Community', href: '/community'},
   ]
 
