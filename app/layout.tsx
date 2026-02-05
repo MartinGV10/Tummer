@@ -5,6 +5,7 @@ import "./globals.css";
 import Nav from "./Nav";
 import "@radix-ui/themes/styles.css";
 import Footer from "./Footer";
+import { ProfileProvider } from "@/src/context/ProfileContext";
 
 const figtree = Figtree({
   subsets: ["latin"],
@@ -25,7 +26,9 @@ export default function RootLayout({
       <body className={`${figtree.className} antialiased `}>
       <Theme accentColor="grass" radius="large">
         {/* <ThemePanel></ThemePanel> */}
-        <main>{children}</main>
+        <ProfileProvider>
+          <main>{children}</main>
+        </ProfileProvider>
       </Theme>
       </body>
     </html>
