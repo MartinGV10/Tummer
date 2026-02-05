@@ -5,20 +5,28 @@ import Link from 'next/link'
 import { Avatar, DropdownMenu } from '@radix-ui/themes'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
+import { useProfile } from '@/src/context/ProfileContext'
 
-type Profile = {
-  first_name: string
-  last_name: string
-  username: string
-  reason: string | null
-  avatar_url: string | null
-}
+// type Profile = {
+//   first_name: string
+//   last_name: string
+//   username: string
+//   reason: string | null
+//   avatar_url: string | null
+// }
 
-type UserNavProps = {
-    profile: Profile
-}
+// type UserNavProps = {
+//     profile: Profile
+// }
 
-const UserNav: React.FC<UserNavProps> = ({ profile }) => {
+// const UserNav: React.FC<UserNavProps> = ({ profile }) => {
+const UserNav = () => {
+  const { profile } = useProfile()
+
+  if (!profile) {
+    return null
+  }
+
   const links = [
     { label: 'Track Meals', href: '/trackMeals'},
     { label: 'Track Bowels', href: '/trackBowels'},
@@ -73,7 +81,9 @@ const UserNav: React.FC<UserNavProps> = ({ profile }) => {
             </DropdownMenu.Trigger>
 
             <DropdownMenu.Content>
-              <DropdownMenu.Item>Settings</DropdownMenu.Item>
+              <Link href='/settings'>
+                <DropdownMenu.Item>Settings</DropdownMenu.Item>
+              </Link>
               <DropdownMenu.Item>Upgrade Plan</DropdownMenu.Item>
               <DropdownMenu.Separator />
               <DropdownMenu.Item>Help</DropdownMenu.Item>

@@ -49,7 +49,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <UserNav profile={profile} />
+      <UserNav />
       <main>{children}</main>
     </div>
   )
