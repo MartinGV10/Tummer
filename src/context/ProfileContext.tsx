@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 
@@ -30,7 +30,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     setLoading(true)
     setError(null)
 
@@ -78,11 +78,31 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
+    // initial load
     loadProfile()
-  }, [])
+
+    // refresh profile when auth state changes (login/logout)
+    const { data } = supabase.auth.onAuthStateChange((_event, _session) => {
+      loadProfile()
+    })
+
+    // cleanup subscription on unmount
+    return () => {
+      try {
+        // v2 returns a subscription object under `data.subscription` or `data`
+        // support both shapes defensively
+        // @ts-ignore
+        if (data?.subscription?.unsubscribe) data.subscription.unsubscribe()
+        // @ts-ignore
+        else if (data?.unsubscribe) data.unsubscribe()
+      } catch (e) {
+        // ignore cleanup errors
+      }
+    }
+  }, [loadProfile])
 
   return (
     <ProfileContext.Provider value={{ profile, loading, error, isAuthenticated, refreshProfile: loadProfile }}>
