@@ -6,6 +6,7 @@ import Nav from "./Nav";
 import "@radix-ui/themes/styles.css";
 import Footer from "./Footer";
 import { ProfileProvider } from "@/src/context/ProfileContext";
+import  { generalSans } from './fonts'
 
 const figtree = Figtree({
   subsets: ["latin"],
@@ -23,8 +24,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${figtree.className} antialiased `}>
-      <Theme accentColor="grass" radius="large">
+      <body className={`${generalSans.className} antialiased `}>
+      <Theme accentColor="grass" radius="large" className={`${generalSans.className}`}>
         {/* <ThemePanel></ThemePanel> */}
         <ProfileProvider>
           <main>{children}</main>
