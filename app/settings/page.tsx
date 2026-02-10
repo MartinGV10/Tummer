@@ -1,6 +1,5 @@
 'use client'
 import React, { useEffect, useState, useRef } from 'react'
-import UserNav from '../components/UserNav'
 import { useProfile } from '@/src/context/ProfileContext'
 import { Avatar, Callout } from '@radix-ui/themes'
 import { IconInfoCircle, IconPhotoEdit, IconTrashX } from '@tabler/icons-react'
@@ -160,8 +159,6 @@ const deleteAvatar = async () => {
 
   return (
     <>
-      <UserNav />
-
       <div className="p-10 flex justify-center flex-col items-center space-y-5">
         <div className="w-full max-w-6xl border-b-2 border-b-green-600 pb-2">
           <h1 className="text-2xl font-medium">Settings</h1>
@@ -180,7 +177,7 @@ const deleteAvatar = async () => {
               <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-6">
                 <div>
                   <div className="flex flex-col mb-5">
-                    <label className="mb-1">First Name</label>
+                    <label className="mb-1 font-medium">First Name</label>
                     <input
                       type="text"
                       className="shadow-md w-full bg-gray-50 border-2 rounded-lg p-2 border-green-600"
@@ -190,7 +187,7 @@ const deleteAvatar = async () => {
                   </div>
 
                   <div className="flex flex-col mb-5">
-                    <label className="mb-1">Last Name</label>
+                    <label className="mb-1 font-medium">Last Name</label>
                     <input
                       type="text"
                       className="shadow-lg w-full bg-gray-50 border-2 rounded-lg p-2 border-green-600"
@@ -202,7 +199,7 @@ const deleteAvatar = async () => {
 
                 <div>
                   <div className="flex flex-col mb-5">
-                    <label className="mb-1">Username</label>
+                    <label className="mb-1 font-medium">Username</label>
                     <input
                       type="text"
                       className="shadow-lg w-full bg-gray-50 border-2 rounded-lg p-2 border-green-600"
@@ -212,7 +209,7 @@ const deleteAvatar = async () => {
                   </div>
 
                   <div className="flex flex-col mb-5">
-                    <label className="mb-1">Email</label>
+                    <label className="mb-1 font-medium">Email</label>
                     <input
                       type="text"
                       className="shadow-md w-full bg-gray-50 border-2 rounded-lg p-2 border-green-600"
