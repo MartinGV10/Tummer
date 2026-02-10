@@ -19,6 +19,7 @@ type ProfileContextType = {
   error: string | null
   isAuthenticated: boolean
   refreshProfile: () => Promise<void>
+  updateProfile: (data: Partial<Profile>) => Promise<void>
 }
 
 const ProfileContext = createContext<ProfileContextType | null>(null)
@@ -104,8 +105,23 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     }
   }, [loadProfile])
 
+  const updateProfile = async (data: Partial<Profile>) => {
+    if (!profile) {
+      return
+    }
+
+    const { error } = await supabase.from('profiles').update(data).eq('id', profile.id)
+
+    if (error) {
+      console.error(error)
+      throw error
+    }
+
+    setProfile(prev => (prev ? { ...prev, ...data } : prev))
+  }
+
   return (
-    <ProfileContext.Provider value={{ profile, loading, error, isAuthenticated, refreshProfile: loadProfile }}>
+    <ProfileContext.Provider value={{ profile, loading, error, isAuthenticated, updateProfile, refreshProfile: loadProfile }}>
       {children}
     </ProfileContext.Provider>
   )
