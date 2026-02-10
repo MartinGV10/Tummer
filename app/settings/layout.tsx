@@ -19,10 +19,10 @@ export default function SettingsLayout({
     }
   }, [loading, isAuthenticated, router])
 
-  if (loading) {
+  if (loading && !profile && !error) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <p className="text-sm text-gray-500">Loading your Meals...</p>
+        <p className="text-sm text-gray-500">Loading your settings...</p>
       </div>
     )
   }

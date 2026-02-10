@@ -18,11 +18,12 @@ export default function DashboardPage() {
         <h1 className="text-3xl font-medium flex items-center gap-3">
           Welcome {profile.first_name}!
           <Avatar
-            size="4"
+            size="5"
             radius="full"
             src={profile.avatar_url ?? undefined}
             fallback={profile.first_name[0]}
             color="green"
+            className="border-2 border-green-600"
           />
         </h1>
       </div>
