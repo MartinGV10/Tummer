@@ -76,6 +76,7 @@ const UserNav = () => {
                   src={profile.avatar_url ?? undefined}
                   fallback={profile.first_name[0]}
                   color="green"
+                  className='border-2 border-green-600'
                 />
               </button>
             </DropdownMenu.Trigger>
