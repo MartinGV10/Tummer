@@ -254,14 +254,14 @@ const deleteAvatar = async () => {
                 src={profile.avatar_url ?? undefined}
                 fallback={profile.first_name[0]}
                 color="green"
-                className='border-2 border-green-600'
+                className='border-2 border-green-600 shadow-md'
               />
               <div className="flex items-center justify-center gap-5">
                 <input type="file" accept='image/*' ref={fileInputRef} className='hidden' onChange={handleAvatarChange}/>
-                  <button className="p-2 rounded-lg hover:bg-gray-200 transition-all cursor-pointer border-2 border-green-600">
+                  <button className="p-2 rounded-lg hover:bg-gray-200 transition-all cursor-pointer border-2 border-green-600 shadow-md">
                   <IconPhotoEdit onClick={() => fileInputRef.current?.click()} disabled={uploading}></IconPhotoEdit>
                 </button>
-                <button className="p-2 rounded-lg hover:bg-gray-200 transition-all cursor-pointer border-2 border-green-600">
+                <button className="p-2 rounded-lg hover:bg-gray-200 transition-all cursor-pointer border-2 border-green-600 shadow-md">
                   <IconTrashX onClick={deleteAvatar} disabled={uploading}/>
                 </button>
               </div>
