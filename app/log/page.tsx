@@ -3,12 +3,36 @@ import { useProfile } from '@/src/context/ProfileContext'
 import { IconApple, IconBottle, IconCandy, IconCarrot, IconCookie, IconDropCircle, IconFilter, IconMeat, IconMeatOff, IconMilk, IconPill, IconPizza, IconSoup, IconTrash, IconWheat } from '@tabler/icons-react'
 import React from 'react'
 import { DropdownMenu } from '@radix-ui/themes'
+import useLogged from '@/src/context/LoggedFoodContext'
+import Link from 'next/link'
 
 const Log = () => {
   const { profile } = useProfile()
+  const { food, loading, error } = useLogged()
 
   if (!profile) {
     return null
+  }
+
+  if (!food) {
+    return null
+  }
+
+  const categoryIconMap: Record<string, React.ElementType> = {
+    animal_based_proteins: IconMeat,
+    plant_based_proteins: IconMeatOff,
+    dairy: IconMilk,
+    vegetables: IconCarrot,
+    fruits: IconApple,
+    grains: IconWheat,
+    legumes: IconSoup,
+    snacks: IconCookie,
+    sweets: IconCandy,
+    junk_food: IconPizza,
+    fats_oils: IconDropCircle,
+    drinks: IconBottle,
+    vitamins: IconPill,
+    other: IconCookie,
   }
 
   return (
@@ -17,7 +41,7 @@ const Log = () => {
       <div className="w-full max-w-6xl flex items-center justify-between mb-4 border-b-2 border-b-green-600 pb-3">
         <h1 className="text-3xl font-medium flex items-center gap-3">Log Foods</h1>
         <div className='flex justify-around gap-5 bg-white p-3 cursor-pointer rounded-4xl shadow-md hover:shadow-lg transition-all hover:bg-green-600 hover:text-white'>
-          <p className='font-medium'>Add Food</p>
+          <Link href='/log/addFood' className='font-medium'>Add Food</Link>
         </div>
       </div>
 
@@ -62,152 +86,53 @@ const Log = () => {
       </div>
 
       {/* Foods */}
-      <div className='grid grid-cols-4 gap-4 w-full max-w-6xl'>
-        <div className='flex flex-col bg-white border-3 border-green-600 p-5 rounded-md shadow-lg space-y-2'>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-x-4'>
-              <IconCookie className='border-3 box-content p-1.25 border-green-800 rounded-2xl shadow-md' size={30}></IconCookie>
-              <p className='text-lg font-medium'>CC Cookie</p>
-            </div>
-            <IconTrash className='hover:bg-green-600 box-content p-1.25 rounded-lg hover:text-white transition-all'></IconTrash>
+       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-6xl">
+        {loading && !food && !error ? (
+          <div className="col-span-full bg-white p-5 rounded-md shadow-lg border-2 border-green-600">
+            <p className="text-sm text-gray-600">Loading foods...</p>
           </div>
-          <div>
-            <p className=''>Can't have bc x, y, z reasons</p>
+        ) : error ? (
+          <div className="col-span-full bg-white p-5 rounded-md shadow-lg border-2 border-red-500">
+            <p className="text-sm text-red-600">{error}</p>
           </div>
-        </div>
-        <div className='flex flex-col bg-white border-3 border-green-600 p-5 rounded-md shadow-lg space-y-2'>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-x-4'>
-              <IconCookie className='border-3 box-content p-1.25 border-green-800 rounded-2xl shadow-md' size={30}></IconCookie>
-              <p className='text-lg font-medium'>CC Cookie</p>
-            </div>
-            <IconTrash className='hover:bg-green-600 box-content p-1.25 rounded-lg hover:text-white transition-all'></IconTrash>
+        ) : food.length === 0 ? (
+          <div className="col-span-full bg-white p-5 rounded-md shadow-lg border-2 border-green-600">
+            <p className="text-sm text-gray-600">No foods logged yet.</p>
           </div>
-          <div>
-            <p className=''>Can't have bc x, y, z reasons</p>
-          </div>
-        </div>
-        <div className='flex flex-col bg-white border-3 border-green-600 p-5 rounded-md shadow-lg space-y-2'>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-x-4'>
-              <IconCookie className='border-3 box-content p-1.25 border-green-800 rounded-2xl shadow-md' size={30}></IconCookie>
-              <p className='text-lg font-medium'>CC Cookie</p>
-            </div>
-            <IconTrash className='hover:bg-green-600 box-content p-1.25 rounded-lg hover:text-white transition-all'></IconTrash>
-          </div>
-          <div>
-            <p className=''>Can't have bc x, y, z reasons</p>
-          </div>
-        </div>
-        <div className='flex flex-col bg-white border-3 border-green-600 p-5 rounded-md shadow-lg space-y-2'>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-x-4'>
-              <IconCookie className='border-3 box-content p-1.25 border-green-800 rounded-2xl shadow-md' size={30}></IconCookie>
-              <p className='text-lg font-medium'>CC Cookie</p>
-            </div>
-            <IconTrash className='hover:bg-green-600 box-content p-1.25 rounded-lg hover:text-white transition-all'></IconTrash>
-          </div>
-          <div>
-            <p className=''>Can't have bc x, y, z reasons</p>
-          </div>
-        </div>
-        <div className='flex flex-col bg-white border-3 border-green-600 p-5 rounded-md shadow-lg space-y-2'>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-x-4'>
-              <IconCookie className='border-3 box-content p-1.25 border-green-800 rounded-2xl shadow-md' size={30}></IconCookie>
-              <p className='text-lg font-medium'>CC Cookie</p>
-            </div>
-            <IconTrash className='hover:bg-green-600 box-content p-1.25 rounded-lg hover:text-white transition-all'></IconTrash>
-          </div>
-          <div>
-            <p className=''>Can't have bc x, y, z reasons</p>
-          </div>
-        </div>
-        <div className='flex flex-col bg-white border-3 border-green-600 p-5 rounded-md shadow-lg space-y-2'>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-x-4'>
-              <IconCookie className='border-3 box-content p-1.25 border-green-800 rounded-2xl shadow-md' size={30}></IconCookie>
-              <p className='text-lg font-medium'>CC Cookie</p>
-            </div>
-            <IconTrash className='hover:bg-green-600 box-content p-1.25 rounded-lg hover:text-white transition-all'></IconTrash>
-          </div>
-          <div>
-            <p className=''>Can't have bc x, y, z reasons</p>
-          </div>
-        </div>
-        <div className='flex flex-col bg-white border-3 border-green-600 p-5 rounded-md shadow-lg space-y-2'>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-x-4'>
-              <IconCookie className='border-3 box-content p-1.25 border-green-800 rounded-2xl shadow-md' size={30}></IconCookie>
-              <p className='text-lg font-medium'>CC Cookie</p>
-            </div>
-            <IconTrash className='hover:bg-green-600 box-content p-1.25 rounded-lg hover:text-white transition-all'></IconTrash>
-          </div>
-          <div>
-            <p className=''>Can't have bc x, y, z reasons</p>
-          </div>
-        </div>
-        <div className='flex flex-col bg-white border-3 border-green-600 p-5 rounded-md shadow-lg space-y-2'>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-x-4'>
-              <IconCookie className='border-3 box-content p-1.25 border-green-800 rounded-2xl shadow-md' size={30}></IconCookie>
-              <p className='text-lg font-medium'>CC Cookie</p>
-            </div>
-            <IconTrash className='hover:bg-green-600 box-content p-1.25 rounded-lg hover:text-white transition-all'></IconTrash>
-          </div>
-          <div>
-            <p className=''>Can't have bc x, y, z reasons</p>
-          </div>
-        </div>
-        <div className='flex flex-col bg-white border-3 border-green-600 p-5 rounded-md shadow-lg space-y-2'>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-x-4'>
-              <IconCookie className='border-3 box-content p-1.25 border-green-800 rounded-2xl shadow-md' size={30}></IconCookie>
-              <p className='text-lg font-medium'>CC Cookie</p>
-            </div>
-            <IconTrash className='hover:bg-green-600 box-content p-1.25 rounded-lg hover:text-white transition-all'></IconTrash>
-          </div>
-          <div>
-            <p className=''>Can't have bc x, y, z reasons</p>
-          </div>
-        </div>
-        <div className='flex flex-col bg-white border-3 border-green-600 p-5 rounded-md shadow-lg space-y-2'>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-x-4'>
-              <IconCookie className='border-3 box-content p-1.25 border-green-800 rounded-2xl shadow-md' size={30}></IconCookie>
-              <p className='text-lg font-medium'>CC Cookie</p>
-            </div>
-            <IconTrash className='hover:bg-green-600 box-content p-1.25 rounded-lg hover:text-white transition-all'></IconTrash>
-          </div>
-          <div>
-            <p className=''>Can't have bc x, y, z reasons</p>
-          </div>
-        </div>
-        <div className='flex flex-col bg-white border-3 border-green-600 p-5 rounded-md shadow-lg space-y-2'>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-x-4'>
-              <IconCookie className='border-3 box-content p-1.25 border-green-800 rounded-2xl shadow-md' size={30}></IconCookie>
-              <p className='text-lg font-medium'>CC Cookie</p>
-            </div>
-            <IconTrash className='hover:bg-green-600 box-content p-1.25 rounded-lg hover:text-white transition-all'></IconTrash>
-          </div>
-          <div>
-            <p className=''>Can't have bc x, y, z reasons</p>
-          </div>
-        </div>
-        <div className='flex flex-col bg-white border-3 border-green-600 p-5 rounded-md shadow-lg space-y-2'>
-          <div className='flex items-center justify-between'>
-            <div className='flex items-center gap-x-4'>
-              <IconCookie className='border-3 box-content p-1.25 border-green-800 rounded-2xl shadow-md' size={30}></IconCookie>
-              <p className='text-lg font-medium'>CC Cookie</p>
-            </div>
-            <IconTrash className='hover:bg-green-600 box-content p-1.25 rounded-lg hover:text-white transition-all'></IconTrash>
-          </div>
-          <div>
-            <p className=''>Can't have bc x, y, z reasons</p>
-          </div>
-        </div>
+        ) : (
+          food.map((f) => {
+            const Icon = categoryIconMap[f.category] ?? IconCookie
 
+            return (
+              <div
+                className="flex flex-col bg-white border-2 border-green-600 p-5 rounded-md shadow-lg space-y-2"
+                key={f.id}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-x-4">
+                    <Icon className="border-2 box-content p-1 border-green-800 rounded-2xl shadow-md" size={30} />
+                    <p className="text-lg font-medium">{f.name}</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="hover:bg-green-600 box-content cursor-pointer p-1 rounded-lg hover:text-white transition-all"
+                    aria-label="Delete food"
+                  >
+                    <IconTrash size={22} />
+                  </button>
+                </div>
+
+                <div className="flex flex-col text-sm text-gray-700 gap-1">
+                  <p>Notes: {f.notes ?? '—'}</p>
+                  <p>Pain Severity: {f.severity ?? '—'}</p>
+                  <p>Symptoms: {f.common_symptoms ?? '—'}</p>
+                  <p>{f.last_reacted_at ? `Last Reaction Date: ${f.last_reacted_at}` : 'No recorded reactions'}</p>
+                </div>
+              </div>
+            )
+          })
+        )}
       </div>
 
     </div>
