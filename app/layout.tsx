@@ -7,6 +7,7 @@ import "@radix-ui/themes/styles.css";
 import Footer from "./Footer";
 import { ProfileProvider } from "@/src/context/ProfileContext";
 import  { generalSans } from './fonts'
+import { FoodProvider } from "@/src/context/LoggedFoodContext";
 
 const figtree = Figtree({
   subsets: ["latin"],
@@ -28,7 +29,9 @@ export default function RootLayout({
       <Theme accentColor="grass" radius="large" className={`${generalSans.className}`}>
         {/* <ThemePanel></ThemePanel> */}
         <ProfileProvider>
-          <main>{children}</main>
+          <FoodProvider>
+            <main>{children}</main>
+          </FoodProvider>
         </ProfileProvider>
       </Theme>
       </body>
