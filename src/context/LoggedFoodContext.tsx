@@ -21,6 +21,7 @@ type FoodContextType = {
   isAuthenticated: boolean
   refreshFoods: () => Promise<void>
   updateFood: (foodId: string, data: Partial<Omit<Food, 'id' | 'user_id'>>) => Promise<void>
+  addFoodLocal: (newFood: Food) => void
 }
 
 const FoodContext = createContext<FoodContextType | null>(null)
@@ -88,6 +89,13 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
     }
   }, [loadFood])
 
+  const addFoodLocal = (newFood: Food) => {
+    setFood((prev) => {
+      if (prev.some((f) => f.id === newFood.id)) return prev
+      return [newFood, ...prev]
+    })
+  }
+
   const updateFood: FoodContextType['updateFood'] = async (foodId, data) => {
     const { error } = await supabase
       .from('user_foods')
@@ -105,7 +113,7 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <FoodContext.Provider value={{ food, loading, error, isAuthenticated, updateFood, refreshFoods: loadFood }}>
+    <FoodContext.Provider value={{ food, loading, error, isAuthenticated, addFoodLocal, updateFood, refreshFoods: loadFood }}>
       {children}
     </FoodContext.Provider>
   )

@@ -124,9 +124,9 @@ const Log = () => {
                 </div>
 
                 <div className="flex flex-col text-sm text-gray-700 gap-1">
-                  <p>Notes: {f.notes ?? '—'}</p>
-                  <p>Pain Severity: {f.severity ?? '—'}</p>
-                  <p>Symptoms: {f.common_symptoms ?? '—'}</p>
+                  <p>{f.notes ? `Notes: ${f.notes ?? '—'}` : 'No notes'}</p>
+                  <p>{f.severity ? `Pain Severity: ${f.severity ?? '—'}` : 'No reported pain'}</p>
+                  <p>{f.common_symptoms ? `Symptoms: ${f.common_symptoms ?? '—'}` : 'No reported symptoms'}</p>
                   <p>{f.last_reacted_at ? `Last Reaction Date: ${f.last_reacted_at}` : 'No recorded reactions'}</p>
                 </div>
               </div>
