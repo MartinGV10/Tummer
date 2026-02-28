@@ -8,7 +8,7 @@ import Link from 'next/link'
 
 const Log = () => {
   const { profile } = useProfile()
-  const { food, loading, error } = useLogged()
+  const { food, loading, error, deleteFood } = useLogged()
 
   if (!profile) {
     return null
@@ -97,7 +97,8 @@ const Log = () => {
           </div>
         ) : food.length === 0 ? (
           <div className="col-span-full bg-white p-5 rounded-md shadow-lg border-2 border-green-600">
-            <p className="text-sm text-gray-600">No foods logged yet.</p>
+            <p className="text-base text-gray-600 text-center">No foods logged yet.</p>
+            <p className="text-base text-gray-600 text-center">Add foods to get started.</p>
           </div>
         ) : (
           food.map((f) => {
@@ -119,7 +120,7 @@ const Log = () => {
                     className="hover:bg-green-600 box-content cursor-pointer p-1 rounded-lg hover:text-white transition-all"
                     aria-label="Delete food"
                   >
-                    <IconTrash size={22} />
+                    <IconTrash size={22} onClick={() => deleteFood(f.id)}/>
                   </button>
                 </div>
 

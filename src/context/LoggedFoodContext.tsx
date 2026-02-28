@@ -22,6 +22,7 @@ type FoodContextType = {
   refreshFoods: () => Promise<void>
   updateFood: (foodId: string, data: Partial<Omit<Food, 'id' | 'user_id'>>) => Promise<void>
   addFoodLocal: (newFood: Food) => void
+  deleteFood: (id: string) => Promise<void>
 }
 
 const FoodContext = createContext<FoodContextType | null>(null)
@@ -112,8 +113,22 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
     )
   }
 
+  const deleteFood = async (id: string) => {
+    const { error } = await supabase
+      .from('user_foods')
+      .delete()
+      .eq('id', id)
+    
+    if (error) {
+      console.error('Delete error: ' + error.message)
+      return
+    }
+
+    setFood(prev => prev.filter(item => item.id !== id))
+  }
+
   return (
-    <FoodContext.Provider value={{ food, loading, error, isAuthenticated, addFoodLocal, updateFood, refreshFoods: loadFood }}>
+    <FoodContext.Provider value={{ food, loading, error, deleteFood, isAuthenticated, addFoodLocal, updateFood, refreshFoods: loadFood }}>
       {children}
     </FoodContext.Provider>
   )
