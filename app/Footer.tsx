@@ -27,7 +27,7 @@ const Footer = () => {
 
                         <a target='_blank' href='https://linkedin.com/in/martin-ganen/'><IconBrandLinkedin size={30} className='cursor-pointer hover:text-green-800 hover:bg-green-300 rounded-2xl p-1 box-content transition-all'></IconBrandLinkedin></a>
 
-                        <a target='_blank' href='martinganen10@gmail.com'><IconMail size={30} className='cursor-pointer hover:text-green-800 hover:bg-green-300 rounded-2xl p-1 box-content transition-all'></IconMail></a>
+                        <a target='_blank' href='mailto:martinganen10@gmail.com'><IconMail size={30} className='cursor-pointer hover:text-green-800 hover:bg-green-300 rounded-2xl p-1 box-content transition-all'></IconMail></a>
                     </div>
                 </div>
             </div>
