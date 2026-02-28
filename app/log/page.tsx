@@ -1,15 +1,17 @@
 'use client'
 import { useProfile } from '@/src/context/ProfileContext'
-import { IconApple, IconBottle, IconCandy, IconCarrot, IconCookie, IconDropCircle, IconFilter, IconMeat, IconMeatOff, IconMilk, IconPill, IconPizza, IconSoup, IconTrash, IconWheat } from '@tabler/icons-react'
+import { IconApple, IconBottle, IconCandy, IconCarrot, IconCookie, IconDropCircle, IconFilter, IconMeat, IconMeatOff, IconMilk, IconPencil, IconPill, IconPizza, IconSoup, IconTrash, IconWheat } from '@tabler/icons-react'
 import React, { useMemo, useState } from 'react'
 import { DropdownMenu } from '@radix-ui/themes'
 import useLogged from '@/src/context/LoggedFoodContext'
 import Link from 'next/link'
 import classNames from 'classnames'
+import Router, { useRouter } from 'next/navigation'
 
 const Log = () => {
   const { profile } = useProfile()
   const { food, loading, error, deleteFood } = useLogged()
+  const router = useRouter()
 
   if (!profile) {
     return null
@@ -137,7 +139,7 @@ const Log = () => {
             return (
               <div
                 className={classNames({
-                  "flex flex-col bg-white border-2  p-5 rounded-md shadow-lg space-y-2": true,
+                  "flex flex-col bg-white border-2 p-5 rounded-md shadow-lg space-y-2": true,
                   'border-green-600' : f.status === 'safe',
                   'border-red-600' : f.status === 'trigger',
                 })}
@@ -155,10 +157,17 @@ const Log = () => {
 
                   <button
                     type="button"
-                    className="hover:bg-green-600 box-content cursor-pointer p-1 rounded-lg hover:text-white transition-all"
+                    className="hover:bg-green-600 box-content cursor-pointer p-1 rounded-lg hover:text-white transition-all flex items-center"
                     aria-label="Delete food"
                   >
                     <IconTrash size={22} onClick={() => deleteFood(f.id)}/>
+                  </button>
+                  <button
+                    type="button"
+                    className="hover:bg-green-600 box-content cursor-pointer p-1 rounded-lg hover:text-white transition-all flex items-center"
+                    aria-label="Delete food"
+                  >
+                    <IconPencil size={22} onClick={() => router.push(`/log/addFood?foodId=${f.id}`)}/>
                   </button>
                 </div>
 

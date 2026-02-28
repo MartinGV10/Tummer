@@ -1,8 +1,8 @@
 'use client'
 import { supabase } from '@/lib/supabaseClient'
 import useLogged, { type Food } from '@/src/context/LoggedFoodContext'
-import { useRouter } from 'next/navigation'
-import React, { useState, useTransition } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import React, { useState, useTransition, useEffect } from 'react'
 
 const AddFood = () => {
   const [name, setName] = useState('')
@@ -18,7 +18,26 @@ const AddFood = () => {
   const [isPending, startTransition] = useTransition()
 
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { addFoodLocal } = useLogged()
+  const { food, updateFood } = useLogged()
+
+  const foodId = searchParams.get('foodId')
+  const editingFood = foodId ? food.find(f => f.id === foodId) : undefined
+
+  useEffect(() => {
+    if (editingFood) {
+      setName(editingFood.name ?? '')
+      setCategory(editingFood.category ?? '')
+      setStatus(editingFood.status ?? '')
+      setSeverity(editingFood.severity?.toString() ?? '')
+      setSymptoms(editingFood.common_symptoms ?? '')
+      setNotes(editingFood.notes ?? '')
+      if (editingFood.last_reacted_at) {
+        setReactionDate(editingFood.last_reacted_at.slice(0, 10))
+      }
+    }
+  }, [editingFood])
 
   const handleAdding = (e: React.FormEvent) => {
     e.preventDefault()
@@ -59,6 +78,28 @@ const AddFood = () => {
         last_reacted_at: reactionDate.trim() === '' ? null : reactionDate
       }
 
+      // Editing
+      if (foodId && editingFood) {
+        try {
+          await updateFood(foodId, {
+            name,
+            category,
+            status,
+            severity: severity ? Number(severity): null,
+            common_symptoms: symptoms || null,
+            notes: notes || null,
+            last_reacted_at: reactionDate || null
+          })
+
+          setMessage('Food updated successfully')
+          router.push('/log')
+        } catch (err) {
+          setError('Failed to update food')
+          console.error(err)
+        }
+      }
+
+      // adding stuff
       const { data: insertedFood, error: addingError } = await supabase
         .from('user_foods')
         .insert(payload)
