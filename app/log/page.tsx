@@ -1,10 +1,11 @@
 'use client'
 import { useProfile } from '@/src/context/ProfileContext'
 import { IconApple, IconBottle, IconCandy, IconCarrot, IconCookie, IconDropCircle, IconFilter, IconMeat, IconMeatOff, IconMilk, IconPill, IconPizza, IconSoup, IconTrash, IconWheat } from '@tabler/icons-react'
-import React from 'react'
+import React, { useMemo, useState } from 'react'
 import { DropdownMenu } from '@radix-ui/themes'
 import useLogged from '@/src/context/LoggedFoodContext'
 import Link from 'next/link'
+import classNames from 'classnames'
 
 const Log = () => {
   const { profile } = useProfile()
@@ -17,6 +18,8 @@ const Log = () => {
   if (!food) {
     return null
   }
+
+  const [filter, setFilter] = useState<'all' | 'trigger' | 'safe'>('all')
 
   const categoryIconMap: Record<string, React.ElementType> = {
     animal_based_proteins: IconMeat,
@@ -35,6 +38,11 @@ const Log = () => {
     other: IconCookie,
   }
 
+  const filterTrigSafe = useMemo(() => {
+    if (filter === 'all') return food
+    return food.filter(f => f.status === filter)
+  }, [food, filter])
+
   return (
     <div className="p-6 mt-5 flex flex-col items-center">
       {/* Header */}
@@ -48,9 +56,15 @@ const Log = () => {
       {/* Buttons */}
       <div className='w-full max-w-6xl pt-2 rounded-2xl flex mb-5 items-center justify-between'>
         <div className='flex gap-5'>
-          <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white'>All Foods</button>
-          <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white'>Triggers</button>
-          <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white'>Safe Foods</button>
+          <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white' 
+            onClick={() => setFilter('all')}
+          >All Foods</button>
+          <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white'
+            onClick={() => setFilter('trigger')}
+          >Triggers</button>
+          <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white'
+            onClick={() => setFilter('safe')}
+          >Safe Foods</button>
         </div>
         <div>
           <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white'>
@@ -101,17 +115,25 @@ const Log = () => {
             <p className="text-base text-gray-600 text-center">Add foods to get started.</p>
           </div>
         ) : (
-          food.map((f) => {
+          filterTrigSafe.map((f) => {
             const Icon = categoryIconMap[f.category] ?? IconCookie
 
             return (
               <div
-                className="flex flex-col bg-white border-2 border-green-600 p-5 rounded-md shadow-lg space-y-2"
+                className={classNames({
+                  "flex flex-col bg-white border-2  p-5 rounded-md shadow-lg space-y-2": true,
+                  'border-green-600' : f.status === 'safe',
+                  'border-red-600' : f.status === 'trigger',
+                })}
                 key={f.id}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-x-4">
-                    <Icon className="border-2 box-content p-1 border-green-800 rounded-2xl shadow-md" size={30} />
+                    <Icon className={classNames({
+                      "border-2 box-content p-1  rounded-2xl shadow-md" : true,
+                      'border-green-800': f.status === 'safe',
+                      'border-red-800': f.status === 'trigger',
+                    })} size={30} />
                     <p className="text-lg font-medium">{f.name}</p>
                   </div>
 
