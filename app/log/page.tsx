@@ -19,7 +19,6 @@ const Log = () => {
     return null
   }
 
-  const [filter, setFilter] = useState<'all' | 'trigger' | 'safe'>('all')
 
   const categoryIconMap: Record<string, React.ElementType> = {
     animal_based_proteins: IconMeat,
@@ -38,10 +37,18 @@ const Log = () => {
     other: IconCookie,
   }
 
+  const [statusFilter, setStatusFilter] = useState<'all' | 'trigger' | 'safe'>('all')
+  const [typeFilter, setTypeFilter] = useState<string>('none')
+
+
   const filterTrigSafe = useMemo(() => {
-    if (filter === 'all') return food
-    return food.filter(f => f.status === filter)
-  }, [food, filter])
+    return food.filter(f => {
+      const matchesStatus = statusFilter === 'all' || f.status === statusFilter
+      const matchesType = typeFilter === 'none' || f.category === typeFilter
+
+      return matchesStatus && matchesType
+    })
+  }, [food, statusFilter, typeFilter])
 
   return (
     <div className="p-6 mt-5 flex flex-col items-center">
@@ -57,16 +64,23 @@ const Log = () => {
       <div className='w-full max-w-6xl pt-2 rounded-2xl flex mb-5 items-center justify-between'>
         <div className='flex gap-5'>
           <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white' 
-            onClick={() => setFilter('all')}
+            onClick={() => setStatusFilter('all')}
           >All Foods</button>
           <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white'
-            onClick={() => setFilter('trigger')}
-          >Triggers</button>
-          <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white'
-            onClick={() => setFilter('safe')}
+            onClick={() => setStatusFilter('safe')}
           >Safe Foods</button>
+          <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white'
+            onClick={() => setStatusFilter('trigger')}
+          >Trigger Foods</button>
         </div>
-        <div>
+        <div className='flex items-center justify-center space-x-5'>
+          <div>
+          {typeFilter === 'none' ? (
+            <p>No filters applied</p>
+          ) : (
+            <p>Filter: {typeFilter}</p>
+          )}
+          </div>
           <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white'>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
@@ -74,25 +88,27 @@ const Log = () => {
             </DropdownMenu.Trigger>
 
             <DropdownMenu.Content>
-              <DropdownMenu.Item>Animal Based Proteins</DropdownMenu.Item>
-              <DropdownMenu.Item>Plant Based Proteins</DropdownMenu.Item>
-              <DropdownMenu.Item>Dairy</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setTypeFilter('none')}>None</DropdownMenu.Item>
               <DropdownMenu.Separator />
-              <DropdownMenu.Item>Vegetables</DropdownMenu.Item>
-              <DropdownMenu.Item>Fruits</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setTypeFilter('animal_based_proteins')}>Animal Based Proteins</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setTypeFilter('plant_based_proteins')}>Plant Based Proteins</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setTypeFilter('dairy')}>Dairy</DropdownMenu.Item>
               <DropdownMenu.Separator />
-              <DropdownMenu.Item>Grains</DropdownMenu.Item>
-              <DropdownMenu.Item>Legumes</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setTypeFilter('vegetables')}>Vegetables</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setTypeFilter('fruits')}>Fruits</DropdownMenu.Item>
               <DropdownMenu.Separator />
-              <DropdownMenu.Item>Snacks</DropdownMenu.Item>
-              <DropdownMenu.Item>Sweets</DropdownMenu.Item>
-              <DropdownMenu.Item>Junk Food</DropdownMenu.Item>
-              <DropdownMenu.Item>Fats/Oils</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setTypeFilter('grains')}>Grains</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setTypeFilter('legumes')}>Legumes</DropdownMenu.Item>
               <DropdownMenu.Separator />
-              <DropdownMenu.Item>Drinks</DropdownMenu.Item>
-              <DropdownMenu.Item>Vitamins</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setTypeFilter('snacks')}>Snacks</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setTypeFilter('sweets')}>Sweets</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setTypeFilter('junk food')}>Junk Food</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setTypeFilter('fats/oils')}> Fats/Oils</DropdownMenu.Item>
               <DropdownMenu.Separator />
-              <DropdownMenu.Item>Other</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setTypeFilter('drinks')}>Drinks</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setTypeFilter('vitamins')}>Vitamins</DropdownMenu.Item>
+              <DropdownMenu.Separator />
+              <DropdownMenu.Item onSelect={() => setTypeFilter('other')}>Other</DropdownMenu.Item>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
           </button>
