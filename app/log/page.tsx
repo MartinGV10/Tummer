@@ -1,26 +1,34 @@
 'use client'
 import { useProfile } from '@/src/context/ProfileContext'
-import { IconApple, IconBottle, IconCandy, IconCarrot, IconCookie, IconDropCircle, IconFilter, IconMeat, IconMeatOff, IconMilk, IconPencil, IconPill, IconPizza, IconSoup, IconTrash, IconWheat } from '@tabler/icons-react'
+import {
+  IconApple,
+  IconBottle,
+  IconCandy,
+  IconCarrot,
+  IconCookie,
+  IconDropCircle,
+  IconFilter,
+  IconMeat,
+  IconMeatOff,
+  IconMilk,
+  IconPencil,
+  IconPill,
+  IconPizza,
+  IconSoup,
+  IconTrash,
+  IconWheat,
+} from '@tabler/icons-react'
 import React, { useMemo, useState } from 'react'
 import { DropdownMenu } from '@radix-ui/themes'
 import useLogged from '@/src/context/LoggedFoodContext'
 import Link from 'next/link'
 import classNames from 'classnames'
-import Router, { useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 
 const Log = () => {
   const { profile } = useProfile()
   const { food, loading, error, deleteFood } = useLogged()
   const router = useRouter()
-
-  if (!profile) {
-    return null
-  }
-
-  if (!food) {
-    return null
-  }
-
 
   const categoryIconMap: Record<string, React.ElementType> = {
     animal_based_proteins: IconMeat,
@@ -39,12 +47,34 @@ const Log = () => {
     other: IconCookie,
   }
 
+  const statusButtons: Array<{ key: 'all' | 'safe' | 'trigger'; label: string }> = [
+    { key: 'all', label: 'All Foods' },
+    { key: 'safe', label: 'Safe Foods' },
+    { key: 'trigger', label: 'Trigger Foods' },
+  ]
+
+  const categoryOptions: Array<{ value: string; label: string }> = [
+    { value: 'animal_based_proteins', label: 'Animal Based Proteins' },
+    { value: 'plant_based_proteins', label: 'Plant Based Proteins' },
+    { value: 'dairy', label: 'Dairy' },
+    { value: 'vegetables', label: 'Vegetables' },
+    { value: 'fruits', label: 'Fruits' },
+    { value: 'grains', label: 'Grains' },
+    { value: 'legumes', label: 'Legumes' },
+    { value: 'snacks', label: 'Snacks' },
+    { value: 'sweets', label: 'Sweets' },
+    { value: 'junk_food', label: 'Junk Food' },
+    { value: 'fats_oils', label: 'Fats/Oils' },
+    { value: 'drinks', label: 'Drinks' },
+    { value: 'vitamins', label: 'Vitamins' },
+    { value: 'other', label: 'Other' },
+  ]
+
   const [statusFilter, setStatusFilter] = useState<'all' | 'trigger' | 'safe'>('all')
   const [typeFilter, setTypeFilter] = useState<string>('none')
 
-
   const filterTrigSafe = useMemo(() => {
-    return food.filter(f => {
+    return (food ?? []).filter((f) => {
       const matchesStatus = statusFilter === 'all' || f.status === statusFilter
       const matchesType = typeFilter === 'none' || f.category === typeFilter
 
@@ -52,85 +82,88 @@ const Log = () => {
     })
   }, [food, statusFilter, typeFilter])
 
+  if (!profile) {
+    return null
+  }
+
   return (
-    <div className="p-6 mt-5 flex flex-col items-center">
-      {/* Header */}
-      <div className="w-full max-w-6xl flex items-center justify-between mb-4 border-b-2 border-b-green-600 pb-3">
-        <h1 className="text-3xl font-medium flex items-center gap-3">Log Foods</h1>
-        <div className='flex justify-around gap-5 bg-white p-3 cursor-pointer rounded-4xl shadow-md hover:shadow-lg transition-all hover:bg-green-600 hover:text-white'>
-          <Link href='/log/addFood' className='font-medium'>Add Food</Link>
+    <div className="p-4 md:p-6 mt-3 md:mt-5 flex flex-col items-center">
+      <div className="w-full max-w-6xl flex flex-col md:flex-row md:items-center md:justify-between mb-4 border-b-2 border-b-green-600/70 pb-4 gap-3">
+        <div>
+          <h1 className="text-3xl font-medium tracking-tight">Log Foods</h1>
+          <p className="text-sm text-gray-600 mt-1">Track safe and trigger foods with quick filters.</p>
         </div>
+        <Link
+          href="/log/addFood"
+          className="inline-flex items-center justify-center rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-green-700 hover:shadow-lg"
+        >
+          Add Food
+        </Link>
       </div>
 
-      {/* Buttons */}
-      <div className='w-full max-w-6xl pt-2 rounded-2xl flex mb-5 items-center justify-between'>
-        <div className='flex gap-5'>
-          <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white' 
-            onClick={() => setStatusFilter('all')}
-          >All Foods</button>
-          <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white'
-            onClick={() => setStatusFilter('safe')}
-          >Safe Foods</button>
-          <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white'
-            onClick={() => setStatusFilter('trigger')}
-          >Trigger Foods</button>
-        </div>
-        <div className='flex items-center justify-center space-x-5'>
-          <div>
-          {typeFilter === 'none' ? (
-            <p>No filters applied</p>
-          ) : (
-            <p>Filter: {typeFilter}</p>
-          )}
+      <div className="w-full max-w-6xl mb-6 rounded-2xl border border-green-100 bg-gradient-to-r from-green-50 via-white to-emerald-50 p-3 md:p-4 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            {statusButtons.map((button) => (
+              <button
+                key={button.key}
+                className={classNames({
+                  'px-3 py-2 rounded-xl font-medium transition-all cursor-pointer border text-sm': true,
+                  'bg-green-600 text-white border-green-600 shadow-md': statusFilter === button.key,
+                  'bg-white text-gray-700 border-gray-200 hover:border-green-400 hover:text-green-700': statusFilter !== button.key,
+                })}
+                onClick={() => setStatusFilter(button.key)}
+              >
+                {button.label}
+              </button>
+            ))}
           </div>
-          <button className='bg-white p-2 rounded-xl shadow-md font-medium hover:bg-green-600 transition-all cursor-pointer hover:text-white'>
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
-              <IconFilter></IconFilter>
-            </DropdownMenu.Trigger>
 
-            <DropdownMenu.Content>
-              <DropdownMenu.Item onSelect={() => setTypeFilter('none')}>None</DropdownMenu.Item>
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item onSelect={() => setTypeFilter('animal_based_proteins')}>Animal Based Proteins</DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => setTypeFilter('plant_based_proteins')}>Plant Based Proteins</DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => setTypeFilter('dairy')}>Dairy</DropdownMenu.Item>
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item onSelect={() => setTypeFilter('vegetables')}>Vegetables</DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => setTypeFilter('fruits')}>Fruits</DropdownMenu.Item>
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item onSelect={() => setTypeFilter('grains')}>Grains</DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => setTypeFilter('legumes')}>Legumes</DropdownMenu.Item>
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item onSelect={() => setTypeFilter('snacks')}>Snacks</DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => setTypeFilter('sweets')}>Sweets</DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => setTypeFilter('junk food')}>Junk Food</DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => setTypeFilter('fats/oils')}> Fats/Oils</DropdownMenu.Item>
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item onSelect={() => setTypeFilter('drinks')}>Drinks</DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => setTypeFilter('vitamins')}>Vitamins</DropdownMenu.Item>
-              <DropdownMenu.Separator />
-              <DropdownMenu.Item onSelect={() => setTypeFilter('other')}>Other</DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
-          </button>
+          <div className="flex items-center gap-3 md:gap-5">
+            <div className="text-sm text-gray-700">
+              {typeFilter === 'none' ? 'No category filter' : `Category: ${typeFilter.replaceAll('_', ' ')}`}
+            </div>
+
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger>
+                <button className="inline-flex items-center gap-2 rounded-xl bg-white border border-gray-200 p-2.5 shadow-sm font-medium hover:border-green-400 hover:text-green-700 transition-all cursor-pointer">
+                  <IconFilter size={18} />
+                  <span className="text-sm">Filter</span>
+                </button>
+              </DropdownMenu.Trigger>
+
+              <DropdownMenu.Content>
+                <DropdownMenu.Item onSelect={() => setTypeFilter('none')}>None</DropdownMenu.Item>
+                <DropdownMenu.Separator />
+                {categoryOptions.map((option) => (
+                  <DropdownMenu.Item key={option.value} onSelect={() => setTypeFilter(option.value)}>
+                    {option.label}
+                  </DropdownMenu.Item>
+                ))}
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
+          </div>
         </div>
       </div>
 
-      {/* Foods */}
-       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full max-w-6xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full max-w-6xl">
         {loading && !food && !error ? (
-          <div className="col-span-full bg-white p-5 rounded-md shadow-lg border-2 border-green-600">
+          <div className="col-span-full bg-white p-6 rounded-2xl shadow-md border border-green-200">
             <p className="text-sm text-gray-600">Loading foods...</p>
           </div>
         ) : error ? (
-          <div className="col-span-full bg-white p-5 rounded-md shadow-lg border-2 border-red-500">
+          <div className="col-span-full bg-white p-6 rounded-2xl shadow-md border border-red-300">
             <p className="text-sm text-red-600">{error}</p>
           </div>
         ) : food.length === 0 ? (
-          <div className="col-span-full bg-white p-5 rounded-md shadow-lg border-2 border-green-600">
+          <div className="col-span-full bg-white p-6 rounded-2xl shadow-md border border-green-200">
             <p className="text-base text-gray-600 text-center">No foods logged yet.</p>
             <p className="text-base text-gray-600 text-center">Add foods to get started.</p>
+          </div>
+        ) : filterTrigSafe.length === 0 ? (
+          <div className="col-span-full bg-white p-6 rounded-2xl shadow-md border border-green-200">
+            <p className="text-base text-gray-700 text-center">No foods match your current filters.</p>
+            <p className="text-sm text-gray-500 text-center mt-1">Try changing status or category filters.</p>
           </div>
         ) : (
           filterTrigSafe.map((f) => {
@@ -139,50 +172,77 @@ const Log = () => {
             return (
               <div
                 className={classNames({
-                  "flex flex-col bg-white border-2 p-5 rounded-md shadow-lg space-y-2": true,
-                  'border-green-600' : f.status === 'safe',
-                  'border-red-600' : f.status === 'trigger',
+                  'flex flex-col bg-white border p-5 rounded-2xl shadow-sm space-y-3 transition-all hover:-translate-y-0.5 hover:shadow-md': true,
+                  'border-green-300 bg-gradient-to-br from-white to-green-50/60': f.status === 'safe',
+                  'border-red-300 bg-gradient-to-br from-white to-red-50/60': f.status === 'trigger',
                 })}
                 key={f.id}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-x-4">
-                    <Icon className={classNames({
-                      "border-2 box-content p-1  rounded-2xl shadow-md" : true,
-                      'border-green-800': f.status === 'safe',
-                      'border-red-800': f.status === 'trigger',
-                    })} size={30} />
-                    <p className="text-lg font-medium">{f.name}</p>
+                    <Icon
+                      className={classNames({
+                        'border-2 box-content p-1.5 rounded-xl shadow-sm': true,
+                        'border-green-800': f.status === 'safe',
+                        'border-red-800': f.status === 'trigger',
+                      })}
+                      size={30}
+                    />
+                    <div>
+                      <p className="text-lg font-semibold leading-tight">{f.name}</p>
+                      <p className="text-xs uppercase tracking-wide text-gray-500 mt-0.5">{f.category.replaceAll('_', ' ')}</p>
+                    </div>
                   </div>
 
+                  <span
+                    className={classNames({
+                      'text-[11px] px-2 py-1 rounded-full font-semibold uppercase tracking-wide': true,
+                      'bg-green-100 text-green-800': f.status === 'safe',
+                      'bg-red-100 text-red-800': f.status === 'trigger',
+                    })}
+                  >
+                    {f.status}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    className="hover:bg-green-600 box-content cursor-pointer p-1 rounded-lg hover:text-white transition-all flex items-center"
+                    className="box-content cursor-pointer p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-green-600 hover:border-green-600 hover:text-white transition-all flex items-center"
                     aria-label="Delete food"
+                    onClick={() => deleteFood(f.id)}
                   >
-                    <IconTrash size={22} onClick={() => deleteFood(f.id)}/>
+                    <IconTrash size={18} />
                   </button>
                   <button
                     type="button"
-                    className="hover:bg-green-600 box-content cursor-pointer p-1 rounded-lg hover:text-white transition-all flex items-center"
-                    aria-label="Delete food"
+                    className="box-content cursor-pointer p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-green-600 hover:border-green-600 hover:text-white transition-all flex items-center"
+                    aria-label="Edit food"
+                    onClick={() => router.push(`/log/addFood?foodId=${f.id}`)}
                   >
-                    <IconPencil size={22} onClick={() => router.push(`/log/addFood?foodId=${f.id}`)}/>
+                    <IconPencil size={18} />
                   </button>
                 </div>
 
                 <div className="flex flex-col text-sm text-gray-700 gap-1">
-                  <p>{f.notes ? `Notes: ${f.notes ?? '—'}` : 'No notes'}</p>
-                  <p>{f.severity ? `Pain Severity: ${f.severity ?? '—'}` : 'No reported pain'}</p>
-                  <p>{f.common_symptoms ? `Symptoms: ${f.common_symptoms ?? '—'}` : 'No reported symptoms'}</p>
-                  <p>{f.last_reacted_at ? `Last Reaction Date: ${f.last_reacted_at}` : 'No recorded reactions'}</p>
+                  <p>
+                    <span className="font-medium text-gray-800">Notes:</span> {f.notes || 'No notes'}
+                  </p>
+                  <p>
+                    <span className="font-medium text-gray-800">Pain Severity:</span> {f.severity ?? 'No reported pain'}
+                  </p>
+                  <p>
+                    <span className="font-medium text-gray-800">Symptoms:</span> {f.common_symptoms || 'No reported symptoms'}
+                  </p>
+                  <p>
+                    <span className="font-medium text-gray-800">Last Reaction:</span> {f.last_reacted_at || 'No recorded reactions'}
+                  </p>
                 </div>
               </div>
             )
           })
         )}
       </div>
-
     </div>
   )
 }
