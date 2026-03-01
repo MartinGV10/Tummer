@@ -8,6 +8,7 @@ import Footer from "./Footer";
 import { ProfileProvider } from "@/src/context/ProfileContext";
 import  { generalSans } from './fonts'
 import { FoodProvider } from "@/src/context/LoggedFoodContext";
+import { MealProvider } from "@/src/context/TrackedMealsContext";
 
 const figtree = Figtree({
   subsets: ["latin"],
@@ -30,7 +31,9 @@ export default function RootLayout({
         {/* <ThemePanel></ThemePanel> */}
         <ProfileProvider>
           <FoodProvider>
-            <main>{children}</main>
+            <MealProvider>
+              <main>{children}</main>
+            </MealProvider>
           </FoodProvider>
         </ProfileProvider>
       </Theme>
