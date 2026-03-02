@@ -9,6 +9,7 @@ import { ProfileProvider } from "@/src/context/ProfileContext";
 import  { generalSans } from './fonts'
 import { FoodProvider } from "@/src/context/LoggedFoodContext";
 import { MealProvider } from "@/src/context/TrackedMealsContext";
+import { HealthProvider } from "@/src/context/HealthContext";
 
 const figtree = Figtree({
   subsets: ["latin"],
@@ -32,7 +33,9 @@ export default function RootLayout({
         <ProfileProvider>
           <FoodProvider>
             <MealProvider>
-              <main>{children}</main>
+              <HealthProvider>
+                <main>{children}</main>
+              </HealthProvider>
             </MealProvider>
           </FoodProvider>
         </ProfileProvider>
