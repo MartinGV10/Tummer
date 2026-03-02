@@ -29,7 +29,7 @@ const UserNav = () => {
 
   const links = [
     { label: 'Track Meals', href: '/trackMeals'},
-    { label: 'Track Bowels', href: '/trackBowels'},
+    { label: 'Log Health', href: '/logHealth'},
     { label: 'Log Foods', href: '/log'},
     { label: 'Support', href: '/support'},
     { label: 'Community', href: '/community'},
