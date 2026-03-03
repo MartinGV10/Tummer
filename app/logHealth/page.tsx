@@ -3,7 +3,7 @@ import { useHealth } from '@/src/context/HealthContext'
 import { Calendar } from '../components/ui/calendar'
 import Link from 'next/link'
 import React, { useState } from 'react'
-import { Separator, Switch } from '@radix-ui/themes'
+import { RadioGroup, Separator, Switch } from '@radix-ui/themes'
 import { IconFileSmile, IconMoodAnnoyed, IconMoodCry, IconMoodEmpty, IconMoodHappy, IconMoodSad, IconMoodSmile } from '@tabler/icons-react'
 
 const logHealth = () => {
@@ -26,6 +26,10 @@ const logHealth = () => {
     const base = date ? new Date(date) : new Date()
     base.setDate(base.getDate() + days)
     setDate(base)
+  }
+
+  const handleForm = (e: React.FormEvent) => {
+    e.preventDefault()
   }
 
   return (
@@ -110,37 +114,92 @@ const logHealth = () => {
       <div className="w-full max-w-6xl space-y-6">
         <div className='flex space-x-5'> 
           <div className='flex flex-col bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm space-y-3 transition-all w-3/4'>
-            <h1 className='text-lg font-semibold leading-tight'>Daily Check-in</h1>
-            <div className='flex items-center justify-between'>
-              <p>How are you feeling?</p>
-              <div className='flex items-center space-x-3'>
-                <IconMoodSad size={35} className='hover:text-green-700 rounded-2xl transition-all cursor-pointer'/>
-                <IconMoodAnnoyed size={35} className='hover:text-green-700 rounded-2xl transition-all cursor-pointer'/>
-                <IconMoodEmpty size={35} className='hover:text-green-700 rounded-2xl transition-all cursor-pointer'/>
-                <IconMoodSmile size={35} className='hover:text-green-700 rounded-2xl transition-all cursor-pointer'/>
-                <IconMoodHappy size={35} className='hover:text-green-700 rounded-2xl transition-all cursor-pointer'/>
+            <form onSubmit={handleForm} className='flex flex-col space-y-3'>
+              <div className='flex justify-between items-center'>
+                <h1 className='text-lg font-semibold leading-tight'>Daily Check-in</h1>
+                <button className='inline-flex items-center justify-center rounded-xl bg-green-600 px-4 py-1.5 text-sm font-medium text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-green-700 hover:shadow-lg cursor-pointer'>Save</button>
               </div>
-            </div>
-            <Separator size='4' color='green'/>
-            <div className='flex items-center justify-between'>
-              <p>How stressed are you?</p>
-              <input type="number" className='bg-gray-50 rounded-2xl border border-green-300 shadow-md w-1/9 text-center font-medium'/>
-            </div>
-            <Separator size='4' color='green'/>
-            <div className='flex items-center justify-between'>
-              <p>How energetic do you feel?</p>
-              <input type="number" className='bg-gray-50 rounded-2xl border border-green-300 shadow-md w-1/9 text-center font-medium'/>
-            </div>
-            <Separator size='4' color='green'/>
-            <div className='flex items-center justify-between'>
-              <p>How much sleep did you get?</p>
-              <input type="number" className='bg-gray-50 rounded-2xl border border-green-300 shadow-md w-1/9 text-center font-medium'/>
-            </div>
-            <Separator size='4' color='green'/>
-            <div className='flex items-center justify-between'>
-              <p>How much hydrated are you?</p>
-              <input type="number" className='bg-gray-50 rounded-2xl border border-green-300 shadow-md w-1/9 text-center font-medium'/>
-            </div>
+              <div className='flex items-center justify-between'>
+                <p>How are you feeling?</p>
+                <div className='flex items-center space-x-3'>
+                  <IconMoodSad size={35} className='hover:text-green-700 rounded-2xl transition-all cursor-pointer'/>
+                  <IconMoodAnnoyed size={35} className='hover:text-green-700 rounded-2xl transition-all cursor-pointer'/>
+                  <IconMoodEmpty size={35} className='hover:text-green-700 rounded-2xl transition-all cursor-pointer'/>
+                  <IconMoodSmile size={35} className='hover:text-green-700 rounded-2xl transition-all cursor-pointer'/>
+                  <IconMoodHappy size={35} className='hover:text-green-700 rounded-2xl transition-all cursor-pointer'/>
+                </div>
+              </div>
+
+              <Separator size='4' color='green'/>
+
+              <div className='flex items-center justify-between'>
+                <p>How stressed are you?</p>
+                <div className='flex items-center space-x-2 justify-around'>
+                  <p>Low</p>
+                  <RadioGroup.Root
+                    orientation='horizontal'
+                    className='!flex !flex-row !items-center !gap-4'
+                    style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '1rem' }}
+                  >
+                    <RadioGroup.Item value='1'></RadioGroup.Item>
+                    <RadioGroup.Item value='2'></RadioGroup.Item>
+                    <RadioGroup.Item value='3'></RadioGroup.Item>
+                    <RadioGroup.Item value='4'></RadioGroup.Item>
+                    <RadioGroup.Item value='5'></RadioGroup.Item>
+                  </RadioGroup.Root>
+                  <p>High</p>
+                </div>
+              </div>
+
+              <Separator size='4' color='green'/>
+
+              <div className='flex items-center justify-between'>
+                <p>How energetic do you feel?</p>
+                <div className='flex items-center space-x-2 justify-around'>
+                  <p>Low</p>
+                  <RadioGroup.Root
+                    orientation='horizontal'
+                    className='!flex !flex-row !items-center !gap-4'
+                    style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '1rem' }}
+                  >
+                    <RadioGroup.Item value='1'></RadioGroup.Item>
+                    <RadioGroup.Item value='2'></RadioGroup.Item>
+                    <RadioGroup.Item value='3'></RadioGroup.Item>
+                    <RadioGroup.Item value='4'></RadioGroup.Item>
+                    <RadioGroup.Item value='5'></RadioGroup.Item>
+                  </RadioGroup.Root>
+                  <p>High</p>
+                </div>
+              </div>
+
+              <Separator size='4' color='green'/>
+
+              <div className='flex items-center justify-between'>
+                <p>How much sleep did you get?</p>
+                <input type="number" className='bg-gray-50 rounded-2xl border border-green-300 shadow-md w-1/9 text-center font-medium' onChange={(e) => setSleep(e.target.value)}/>
+              </div>
+
+              <Separator size='4' color='green'/>
+              
+              <div className='flex items-center justify-between'>
+                <p>How much hydrated are you?</p>
+                <div className='flex items-center space-x-2 justify-around'>
+                  <p>Low</p>
+                  <RadioGroup.Root
+                    orientation='horizontal'
+                    className='!flex !flex-row !items-center !gap-4'
+                    style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '1rem' }}
+                  >
+                    <RadioGroup.Item value='1'></RadioGroup.Item>
+                    <RadioGroup.Item value='2'></RadioGroup.Item>
+                    <RadioGroup.Item value='3'></RadioGroup.Item>
+                    <RadioGroup.Item value='4'></RadioGroup.Item>
+                    <RadioGroup.Item value='5'></RadioGroup.Item>
+                  </RadioGroup.Root>
+                  <p>High</p>
+                </div>
+              </div>
+            </form>
           </div>
           <div className='flex flex-col bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm space-y-3 transition-all w-1/3'>
             sd
