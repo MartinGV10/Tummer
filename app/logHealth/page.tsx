@@ -94,6 +94,12 @@ const LogHealth = () => {
     setNotes(daily.notes ?? '')
   }, [daily, selectedDateKey])
 
+  useEffect(() => {
+    if (!submitMessage) return
+    const timer = setTimeout(() => setSubmitMessage(null), 2500)
+    return () => clearTimeout(timer)
+  }, [submitMessage])
+
   const handleForm = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedDateKey) {
@@ -629,7 +635,7 @@ const LogHealth = () => {
               <p className="text-xs text-gray-600">Entries this day: {bowels.length}</p>
               {bowels.slice(0, 3).map((b) => (
                 <p key={b.id} className="text-sm text-gray-700">
-                  Bristol {b.bristol_type ?? '-'} | Urgency {b.urgency_level ?? '-'}
+                  Bristol: {b.bristol_type ?? '-'} | Urgency: {b.urgency_level ?? '-'}
                 </p>
               ))}
             </div>
