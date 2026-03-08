@@ -34,8 +34,8 @@ const UserNav = () => {
     { label: 'Track Meals', href: '/trackMeals'},
     { label: 'Log Health', href: '/logHealth'},
     { label: 'Log Foods', href: '/log'},
-    // { label: 'Support', href: '/support'},
-    // { label: 'Community', href: '/community'},
+    { label: 'Support', href: '/support'},
+    { label: 'Community', href: '/community'},
   ]
 
   const router = useRouter()
