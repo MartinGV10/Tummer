@@ -10,6 +10,13 @@ import { supabase } from '@/lib/supabaseClient'
 type DailyLogRow = {
   id: string
   log_date: string
+  overall_feeling: number | null
+  stress_level: number | null
+  energy_level: number | null
+  sleep_hours: number | null
+  hydration_level: number | null
+  flare_day: boolean | null
+  period_day: boolean | null
 }
 
 type SimpleBowel = {
@@ -21,6 +28,34 @@ type SimpleSymptom = {
   id: string
   daily_log_id: string
 }
+
+type DashboardAiData = {
+  insight: string
+  alert: string
+}
+
+type TriggerFoodRow = {
+  name: string
+  status: string
+}
+
+type ProfileMetaRow = {
+  condition_id: string | null
+  reason: string | null
+}
+
+type ConditionRow = {
+  name: string
+}
+
+type DashboardAiCache = {
+  signature: string
+  savedAt: number
+  data: DashboardAiData
+}
+
+const AI_CACHE_KEY = 'dashboard_ai_insights_v1'
+const AI_CACHE_TTL_MS = 15 * 60 * 1000
 
 function toDateKey(d: Date): string {
   const y = d.getFullYear()
@@ -60,6 +95,22 @@ function daysBetween(dateA: string, dateB: Date): number {
   return Math.floor(diff / (1000 * 60 * 60 * 24))
 }
 
+function normalizeFoodName(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+function findTriggerMatch(mealName: string, triggerFoods: string[]): string | null {
+  const mealNorm = normalizeFoodName(mealName)
+  for (const trigger of triggerFoods) {
+    const trigNorm = normalizeFoodName(trigger)
+    if (!trigNorm) continue
+    if (mealNorm === trigNorm || mealNorm.includes(trigNorm) || trigNorm.includes(mealNorm)) {
+      return trigger
+    }
+  }
+  return null
+}
+
 export default function DashboardPage() {
   const { profile } = useProfile()
   const { meals } = useMeals()
@@ -70,6 +121,12 @@ export default function DashboardPage() {
   const [weeklyBowels, setWeeklyBowels] = useState<SimpleBowel[]>([])
   const [weeklySymptoms, setWeeklySymptoms] = useState<SimpleSymptom[]>([])
   const [lastSymptomDate, setLastSymptomDate] = useState<string | null>(null)
+  const [triggerFoods, setTriggerFoods] = useState<string[]>([])
+  const [profileCondition, setProfileCondition] = useState<string | null>(null)
+  const [profileRestriction, setProfileRestriction] = useState<string | null>(null)
+  const [aiData, setAiData] = useState<DashboardAiData | null>(null)
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiError, setAiError] = useState<string | null>(null)
 
   const today = useMemo(() => new Date(), [])
   const todayKey = useMemo(() => toDateKey(today), [today])
@@ -94,6 +151,9 @@ export default function DashboardPage() {
         setWeeklyBowels([])
         setWeeklySymptoms([])
         setLastSymptomDate(null)
+        setTriggerFoods([])
+        setProfileCondition(null)
+        setProfileRestriction(null)
         setLoadingHealth(false)
         if (userError) setHealthError(userError.message)
         return
@@ -101,7 +161,7 @@ export default function DashboardPage() {
 
       const dailyLogsPromise = supabase
         .from('daily_logs')
-        .select('id, log_date')
+        .select('id, log_date, overall_feeling, stress_level, energy_level, sleep_hours, hydration_level, flare_day, period_day')
         .eq('user_id', user.id)
         .gte('log_date', rangeStart)
         .lte('log_date', todayKey)
@@ -114,7 +174,18 @@ export default function DashboardPage() {
         .order('log_date', { foreignTable: 'daily_logs', ascending: false })
         .limit(1)
 
-      const [dailyLogsRes, lastSymptomRes] = await Promise.all([dailyLogsPromise, lastSymptomPromise])
+      const triggerFoodsPromise = supabase
+        .from('user_foods')
+        .select('name, status')
+        .eq('user_id', user.id)
+
+      const profileMetaPromise = supabase
+        .from('profiles')
+        .select('condition_id, reason')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      const [dailyLogsRes, lastSymptomRes, triggerFoodsRes, profileMetaRes] = await Promise.all([dailyLogsPromise, lastSymptomPromise, triggerFoodsPromise, profileMetaPromise])
 
       if (!active) return
 
@@ -161,6 +232,44 @@ export default function DashboardPage() {
         setLastSymptomDate(row?.daily_logs?.log_date ?? null)
       }
 
+      if (triggerFoodsRes.error) {
+        setTriggerFoods([])
+      } else {
+        const rows = (triggerFoodsRes.data ?? []) as TriggerFoodRow[]
+        setTriggerFoods(
+          rows
+            .filter((r) => r.status === 'trigger' && typeof r.name === 'string' && r.name.trim() !== '')
+            .map((r) => r.name.trim())
+        )
+      }
+
+      if (profileMetaRes.error || !profileMetaRes.data) {
+        setProfileCondition(null)
+        setProfileRestriction(profile?.reason ?? null)
+      } else {
+        const profileMeta = profileMetaRes.data as ProfileMetaRow
+        setProfileRestriction(profileMeta.reason ?? profile?.reason ?? null)
+
+        if (profileMeta.condition_id) {
+          const conditionRes = await supabase
+            .from('conditions')
+            .select('name')
+            .eq('id', profileMeta.condition_id)
+            .maybeSingle()
+
+          if (!active) return
+
+          if (conditionRes.error || !conditionRes.data) {
+            setProfileCondition(null)
+          } else {
+            const conditionRow = conditionRes.data as ConditionRow
+            setProfileCondition(conditionRow.name ?? null)
+          }
+        } else {
+          setProfileCondition(null)
+        }
+      }
+
       setLoadingHealth(false)
     }
 
@@ -169,7 +278,7 @@ export default function DashboardPage() {
     return () => {
       active = false
     }
-  }, [rangeStart, todayKey])
+  }, [rangeStart, todayKey, profile?.reason])
 
   const mealsToday = useMemo(() => meals.filter((m) => isSameLocalDay(m.eaten_at, today)).length, [meals, today])
 
@@ -215,6 +324,120 @@ export default function DashboardPage() {
 
   const maxBowels = Math.max(1, ...Object.values(bowelsByDay))
   const maxMeals = Math.max(1, ...Object.values(mealsByDay))
+
+  const weeklyTriggerMeals = useMemo(() => {
+    const allowedDays = new Set(last7Days.map((d) => d.key))
+    const out: Array<{ date: string; meal_name: string; trigger_food: string }> = []
+
+    for (const meal of meals) {
+      const dateKey = toDateKey(new Date(meal.eaten_at))
+      if (!allowedDays.has(dateKey)) continue
+      const match = findTriggerMatch(meal.meal_name, triggerFoods)
+      if (!match) continue
+      out.push({
+        date: dateKey,
+        meal_name: meal.meal_name,
+        trigger_food: match,
+      })
+    }
+
+    return out
+  }, [last7Days, meals, triggerFoods])
+
+  const aiPayload = useMemo(
+    () => ({
+      today: todayKey,
+      mealsToday,
+      bowelsToday,
+      symptomsToday,
+      daysSinceSymptom,
+      weeklyMeals: last7Days.map((d) => ({ date: d.key, value: mealsByDay[d.key] ?? 0 })),
+      weeklyBowels: last7Days.map((d) => ({ date: d.key, value: bowelsByDay[d.key] ?? 0 })),
+      weeklySymptoms: last7Days.map((d) => ({ date: d.key, value: symptomsByDay[d.key] ?? 0 })),
+      weeklyFactors: last7Days.map((d) => {
+        const row = weeklyDailyLogs.find((log) => log.log_date === d.key)
+        return {
+          date: d.key,
+          stress_level: row?.stress_level ?? null,
+          sleep_hours: row?.sleep_hours ?? null,
+          energy_level: row?.energy_level ?? null,
+          hydration_level: row?.hydration_level ?? null,
+          overall_feeling: row?.overall_feeling ?? null,
+          flare_day: row?.flare_day ?? null,
+          period_day: row?.period_day ?? null,
+        }
+      }),
+      triggerFoods,
+      weeklyTriggerMeals,
+      profileContext: {
+        condition: profileCondition,
+        dietaryRestriction: profileRestriction,
+      },
+    }),
+    [todayKey, mealsToday, bowelsToday, symptomsToday, daysSinceSymptom, last7Days, mealsByDay, bowelsByDay, symptomsByDay, weeklyDailyLogs, triggerFoods, weeklyTriggerMeals, profileCondition, profileRestriction]
+  )
+
+  useEffect(() => {
+    let active = true
+    const loadAi = async () => {
+      if (!profile || loadingHealth) return
+
+      const signature = JSON.stringify(aiPayload)
+      const rawCache = typeof window !== 'undefined' ? window.localStorage.getItem(AI_CACHE_KEY) : null
+      if (rawCache) {
+        try {
+          const parsed = JSON.parse(rawCache) as DashboardAiCache
+          const stillValid = Date.now() - parsed.savedAt < AI_CACHE_TTL_MS
+          if (parsed.signature === signature && stillValid) {
+            if (!active) return
+            setAiData(parsed.data)
+            setAiLoading(false)
+            setAiError(null)
+            return
+          }
+        } catch {
+          // Ignore malformed cache and fetch fresh result.
+        }
+      }
+
+      setAiLoading(true)
+      setAiError(null)
+
+      const res = await fetch('/api/dashboard-insights', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(aiPayload),
+      })
+
+      if (!active) return
+
+      if (!res.ok) {
+        const errorData = (await res.json().catch(() => ({}))) as { error?: string }
+        setAiError(errorData.error ?? 'Could not load AI insights')
+        setAiLoading(false)
+        return
+      }
+
+      const data = (await res.json()) as DashboardAiData
+      setAiData(data)
+      if (typeof window !== 'undefined') {
+        const cachePayload: DashboardAiCache = {
+          signature,
+          savedAt: Date.now(),
+          data,
+        }
+        window.localStorage.setItem(AI_CACHE_KEY, JSON.stringify(cachePayload))
+      }
+      setAiLoading(false)
+    }
+
+    void loadAi()
+    return () => {
+      active = false
+    }
+  }, [profile, loadingHealth, aiPayload])
 
   if (!profile) return null
 
@@ -353,16 +576,28 @@ export default function DashboardPage() {
         <div className="bg-white border border-dashed border-green-300 p-5 rounded-2xl shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <IconBrain size={20} />
-            <h3 className="text-lg font-semibold">AI Insights Placeholder</h3>
+            <h3 className="text-lg font-semibold">AI Insights</h3>
           </div>
-          <p className="text-sm text-gray-600">Reserved for future trend explanations and personalized guidance.</p>
+          {aiLoading ? (
+            <p className="text-sm text-gray-600">Generating insight...</p>
+          ) : aiError ? (
+            <p className="text-sm text-red-600">{aiError}</p>
+          ) : (
+            <p className="text-sm text-gray-700">{aiData?.insight ?? 'No insight yet.'}</p>
+          )}
         </div>
         <div className="bg-white border border-dashed border-green-300 p-5 rounded-2xl shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <IconBrain size={20} />
-            <h3 className="text-lg font-semibold">AI Alerts Placeholder</h3>
+            <h3 className="text-lg font-semibold">AI Alerts</h3>
           </div>
-          <p className="text-sm text-gray-600">Reserved for future anomaly alerts and proactive recommendations.</p>
+          {aiLoading ? (
+            <p className="text-sm text-gray-600">Checking trends...</p>
+          ) : aiError ? (
+            <p className="text-sm text-red-600">{aiError}</p>
+          ) : (
+            <p className="text-sm text-gray-700">{aiData?.alert ?? 'No alert right now.'}</p>
+          )}
         </div>
       </div>
 
