@@ -70,6 +70,12 @@ type HealthContextType = {
     severity?: number | null
     notes?: string | null
   }) => Promise<Symptom | null>
+  updateSymptom: (id: string, data: {
+    symptom_name: string
+    severity?: number | null
+    notes?: string | null
+  }) => Promise<Symptom | null>
+  deleteSymptom: (id: string) => Promise<boolean>
   addBowel: (data: {
     daily_log_id?: string
     occurred_at?: string | Date
@@ -79,6 +85,15 @@ type HealthContextType = {
     mucus_present?: boolean | null
     notes?: string | null
   }) => Promise<Bowel | null>
+  updateBowel: (id: string, data: {
+    occurred_at?: string | Date
+    bristol_type?: number | null
+    urgency_level?: number | null
+    blood_present?: boolean | null
+    mucus_present?: boolean | null
+    notes?: string | null
+  }) => Promise<Bowel | null>
+  deleteBowel: (id: string) => Promise<boolean>
 }
 
 const HealthContext = React.createContext<HealthContextType | null>(null)
@@ -333,6 +348,117 @@ export function HealthProvider({ children } : { children: React.ReactNode }) {
       return data as Bowel
     }, [daily]
   )
+  const updateSymptom: HealthContextType['updateSymptom'] = useCallback(
+    async (id, { symptom_name, severity = null, notes = null }) => {
+      setError(null)
+
+      const { data, error } = await supabase
+        .from('symptom_entries')
+        .update({
+          symptom_name,
+          severity,
+          notes,
+        })
+        .eq('id', id)
+        .select('*')
+        .single()
+
+      if (error) {
+        setError(error.message)
+        return null
+      }
+
+      setSymptoms((prev) => prev.map((s) => (s.id === id ? (data as Symptom) : s)))
+      return data as Symptom
+    },
+    []
+  )
+
+  const updateBowel: HealthContextType['updateBowel'] = useCallback(
+    async (
+      id,
+      {
+        occurred_at,
+        bristol_type = null,
+        urgency_level = null,
+        blood_present = null,
+        mucus_present = null,
+        notes = null,
+      }
+    ) => {
+      setError(null)
+
+      const payload: any = {
+        bristol_type,
+        urgency_level,
+        blood_present,
+        mucus_present,
+        notes,
+      }
+
+      if (occurred_at instanceof Date) {
+        payload.occurred_at = occurred_at.toISOString()
+      } else if (typeof occurred_at === 'string') {
+        payload.occurred_at = occurred_at
+      } else if (occurred_at === undefined) {
+        payload.occurred_at = null
+      }
+
+      const { data, error } = await supabase
+        .from('bowel_entries')
+        .update(payload)
+        .eq('id', id)
+        .select('*')
+        .single()
+
+      if (error) {
+        setError(error.message)
+        return null
+      }
+
+      setBowels((prev) => prev.map((b) => (b.id === id ? (data as Bowel) : b)))
+      return data as Bowel
+    },
+    []
+  )
+
+  const deleteSymptom: HealthContextType['deleteSymptom'] = useCallback(
+    async (id) => {
+      setError(null)
+      const { error } = await supabase
+        .from('symptom_entries')
+        .delete()
+        .eq('id', id)
+
+      if (error) {
+        setError(error.message)
+        return false
+      }
+
+      setSymptoms((prev) => prev.filter((s) => s.id !== id))
+      return true
+    },
+    []
+  )
+
+  const deleteBowel: HealthContextType['deleteBowel'] = useCallback(
+    async (id) => {
+      setError(null)
+      const { error } = await supabase
+        .from('bowel_entries')
+        .delete()
+        .eq('id', id)
+
+      if (error) {
+        setError(error.message)
+        return false
+      }
+
+      setBowels((prev) => prev.filter((b) => b.id !== id))
+      return true
+    },
+    []
+  )
 
   const value: HealthContextType = {
     daily,
@@ -345,6 +471,10 @@ export function HealthProvider({ children } : { children: React.ReactNode }) {
     upsertDaily,
     addSymptom,
     addBowel,
+    updateSymptom,
+    updateBowel,
+    deleteSymptom,
+    deleteBowel,
   }
 
   return (
@@ -363,3 +493,4 @@ export function useHealth() {
 }
 
 export default HealthContext
+

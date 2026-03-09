@@ -12,8 +12,19 @@ function toLocalDateKey(d: Date): string {
   return `${year}-${month}-${day}`
 }
 
+function toDateTimeLocalValue(value: string | null | undefined): string {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  const hours = String(d.getHours()).padStart(2, '0')
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+}
 const LogHealth = () => {
-  const { daily, symptoms, bowels, refreshHealth, upsertDaily, addSymptom, addBowel, isAuthenticated } = useHealth()
+  const { daily, symptoms, bowels, refreshHealth, upsertDaily, addSymptom, updateSymptom, deleteSymptom, addBowel, updateBowel, deleteBowel, isAuthenticated } = useHealth()
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [open, setOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -36,6 +47,8 @@ const LogHealth = () => {
   const [symptomNotes, setSymptomNotes] = useState('')
   const [symptomSubmitting, setSymptomSubmitting] = useState(false)
   const [symptomError, setSymptomError] = useState<string | null>(null)
+  const [editingSymptomId, setEditingSymptomId] = useState<string | null>(null)
+  const [deletingSymptomId, setDeletingSymptomId] = useState<string | null>(null)
 
   const [bowelOccurredAt, setBowelOccurredAt] = useState('')
   const [bowelBristolType, setBowelBristolType] = useState('')
@@ -45,6 +58,8 @@ const LogHealth = () => {
   const [bowelNotes, setBowelNotes] = useState('')
   const [bowelSubmitting, setBowelSubmitting] = useState(false)
   const [bowelError, setBowelError] = useState<string | null>(null)
+  const [editingBowelId, setEditingBowelId] = useState<string | null>(null)
+  const [deletingBowelId, setDeletingBowelId] = useState<string | null>(null)
 
   const selectedDateKey = useMemo(() => {
     if (!date) return ''
@@ -166,6 +181,45 @@ const LogHealth = () => {
     return created.id
   }
 
+  const startEditSymptom = (id: string) => {
+    const entry = symptoms.find((s) => s.id === id)
+    if (!entry) return
+
+    setEditingSymptomId(id)
+    setSymptomName(entry.symptom_name)
+    setSymptomSeverity(entry.severity === null ? '' : entry.severity.toString())
+    setSymptomNotes(entry.notes ?? '')
+    setSymptomError(null)
+  }
+
+  const cancelEditSymptom = () => {
+    setEditingSymptomId(null)
+    setSymptomName('')
+    setSymptomSeverity('')
+    setSymptomNotes('')
+    setSymptomError(null)
+  }
+  const handleDeleteSymptom = async (id: string) => {
+    const confirmed = window.confirm('Delete this symptom entry?')
+    if (!confirmed) return
+
+    setDeletingSymptomId(id)
+    setSymptomError(null)
+
+    const deleted = await deleteSymptom(id)
+    if (!deleted) {
+      setSymptomError('Could not delete symptom entry.')
+      setDeletingSymptomId(null)
+      return
+    }
+
+    if (editingSymptomId === id) {
+      cancelEditSymptom()
+    }
+
+    await refreshHealth({ logDate: selectedDateKey })
+    setDeletingSymptomId(null)
+  }
   const handleSymptomSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!symptomName.trim()) {
@@ -189,12 +243,18 @@ const LogHealth = () => {
       return
     }
 
-    const saved = await addSymptom({
-      daily_log_id: dailyLogId,
-      symptom_name: symptomName.trim(),
-      severity: severityNum,
-      notes: symptomNotes.trim() === '' ? null : symptomNotes.trim(),
-    })
+    const saved = editingSymptomId
+      ? await updateSymptom(editingSymptomId, {
+          symptom_name: symptomName.trim(),
+          severity: severityNum,
+          notes: symptomNotes.trim() === '' ? null : symptomNotes.trim(),
+        })
+      : await addSymptom({
+          daily_log_id: dailyLogId,
+          symptom_name: symptomName.trim(),
+          severity: severityNum,
+          notes: symptomNotes.trim() === '' ? null : symptomNotes.trim(),
+        })
 
     if (!saved) {
       setSymptomError('Could not save symptom entry.')
@@ -202,6 +262,7 @@ const LogHealth = () => {
       return
     }
 
+    setEditingSymptomId(null)
     setSymptomName('')
     setSymptomSeverity('')
     setSymptomNotes('')
@@ -209,6 +270,51 @@ const LogHealth = () => {
     setSymptomSubmitting(false)
   }
 
+  const startEditBowel = (id: string) => {
+    const entry = bowels.find((b) => b.id === id)
+    if (!entry) return
+
+    setEditingBowelId(id)
+    setBowelOccurredAt(toDateTimeLocalValue(entry.occurred_at))
+    setBowelBristolType(entry.bristol_type === null ? '' : entry.bristol_type.toString())
+    setBowelUrgency(entry.urgency_level === null ? '' : entry.urgency_level.toString())
+    setBowelBlood(entry.blood_present === null ? 'unset' : entry.blood_present ? 'yes' : 'no')
+    setBowelMucus(entry.mucus_present === null ? 'unset' : entry.mucus_present ? 'yes' : 'no')
+    setBowelNotes(entry.notes ?? '')
+    setBowelError(null)
+  }
+
+  const cancelEditBowel = () => {
+    setEditingBowelId(null)
+    setBowelOccurredAt('')
+    setBowelBristolType('')
+    setBowelUrgency('')
+    setBowelBlood('unset')
+    setBowelMucus('unset')
+    setBowelNotes('')
+    setBowelError(null)
+  }
+  const handleDeleteBowel = async (id: string) => {
+    const confirmed = window.confirm('Delete this bowel entry?')
+    if (!confirmed) return
+
+    setDeletingBowelId(id)
+    setBowelError(null)
+
+    const deleted = await deleteBowel(id)
+    if (!deleted) {
+      setBowelError('Could not delete bowel entry.')
+      setDeletingBowelId(null)
+      return
+    }
+
+    if (editingBowelId === id) {
+      cancelEditBowel()
+    }
+
+    await refreshHealth({ logDate: selectedDateKey })
+    setDeletingBowelId(null)
+  }
   const handleBowelSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -244,15 +350,24 @@ const LogHealth = () => {
       occurredAtIso = parsed.toISOString()
     }
 
-    const saved = await addBowel({
-      daily_log_id: dailyLogId,
-      occurred_at: occurredAtIso,
-      bristol_type: bristolNum,
-      urgency_level: urgencyNum,
-      blood_present: bowelBlood === 'unset' ? null : bowelBlood === 'yes',
-      mucus_present: bowelMucus === 'unset' ? null : bowelMucus === 'yes',
-      notes: bowelNotes.trim() === '' ? null : bowelNotes.trim(),
-    })
+    const saved = editingBowelId
+      ? await updateBowel(editingBowelId, {
+          occurred_at: occurredAtIso,
+          bristol_type: bristolNum,
+          urgency_level: urgencyNum,
+          blood_present: bowelBlood === 'unset' ? null : bowelBlood === 'yes',
+          mucus_present: bowelMucus === 'unset' ? null : bowelMucus === 'yes',
+          notes: bowelNotes.trim() === '' ? null : bowelNotes.trim(),
+        })
+      : await addBowel({
+          daily_log_id: dailyLogId,
+          occurred_at: occurredAtIso,
+          bristol_type: bristolNum,
+          urgency_level: urgencyNum,
+          blood_present: bowelBlood === 'unset' ? null : bowelBlood === 'yes',
+          mucus_present: bowelMucus === 'unset' ? null : bowelMucus === 'yes',
+          notes: bowelNotes.trim() === '' ? null : bowelNotes.trim(),
+        })
 
     if (!saved) {
       setBowelError('Could not save bowel entry.')
@@ -260,6 +375,7 @@ const LogHealth = () => {
       return
     }
 
+    setEditingBowelId(null)
     setBowelOccurredAt('')
     setBowelBristolType('')
     setBowelUrgency('')
@@ -281,7 +397,7 @@ const LogHealth = () => {
         </div>
       </div>
 
-      <div className="w-full max-w-6xl mb-6 rounded-2xl border border-green-100 bg-gradient-to-r from-green-50 via-white to-emerald-50 p-3 md:p-4 shadow-sm">
+      <div className="w-full max-w-6xl mb-6 rounded-2xl border border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 p-3 md:p-4 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
           <div className="relative flex items-center gap-2">
             <button
@@ -348,7 +464,7 @@ const LogHealth = () => {
 
       <div className="w-full max-w-6xl space-y-5">
         <form onSubmit={handleForm} className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-          <div className="flex flex-col bg-white border border-green-300 bg-gradient-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm space-y-4 lg:col-span-8 h-full">
+          <div className="flex flex-col bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm space-y-4 lg:col-span-8 h-full">
             <div className="flex items-center justify-between border-b border-green-200 pb-3">
               <h2 className="text-xl font-semibold leading-tight">Daily Check-In</h2>
               <button
@@ -388,7 +504,7 @@ const LogHealth = () => {
                 <p className="text-sm font-medium text-gray-800">How stressed are you?</p>
                 <div className={scoreGroupCls}>
                   <p className="text-xs text-gray-600">Low</p>
-                  <RadioGroup.Root value={stress} onValueChange={setStress} orientation="horizontal" className="!flex !flex-row !items-center !gap-3" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.75rem' }}>
+                  <RadioGroup.Root value={stress} onValueChange={setStress} orientation="horizontal" className="flex! flex-row! items-center! gap-3!" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.75rem' }}>
                     <RadioGroup.Item value="1" />
                     <RadioGroup.Item value="2" />
                     <RadioGroup.Item value="3" />
@@ -405,7 +521,7 @@ const LogHealth = () => {
                 <p className="text-sm font-medium text-gray-800">How energetic do you feel?</p>
                 <div className={scoreGroupCls}>
                   <p className="text-xs text-gray-600">Low</p>
-                  <RadioGroup.Root value={energy} onValueChange={setEnergy} orientation="horizontal" className="!flex !flex-row !items-center !gap-3" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.75rem' }}>
+                  <RadioGroup.Root value={energy} onValueChange={setEnergy} orientation="horizontal" className="flex! flex-row! items-center! gap-3!" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.75rem' }}>
                     <RadioGroup.Item value="1" />
                     <RadioGroup.Item value="2" />
                     <RadioGroup.Item value="3" />
@@ -434,7 +550,7 @@ const LogHealth = () => {
                   <p className="text-sm font-medium text-gray-800 mb-1">Hydration (1-5)</p>
                   <div className={scoreGroupCls}>
                     <p className="text-xs text-gray-600">Low</p>
-                    <RadioGroup.Root value={hydrate} onValueChange={setHydrate} orientation="horizontal" className="!flex !flex-row !items-center !gap-3" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.75rem' }}>
+                    <RadioGroup.Root value={hydrate} onValueChange={setHydrate} orientation="horizontal" className="flex! flex-row! items-center! gap-3!" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '0.75rem' }}>
                       <RadioGroup.Item value="1" />
                       <RadioGroup.Item value="2" />
                       <RadioGroup.Item value="3" />
@@ -461,7 +577,7 @@ const LogHealth = () => {
             {submitMessage && <p className="text-sm text-green-700">{submitMessage}</p>}
           </div>
 
-          <div className="flex flex-col bg-white border border-green-300 bg-gradient-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm space-y-4 lg:col-span-4 h-full">
+          <div className="flex flex-col bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm space-y-4 lg:col-span-4 h-full">
             <div className="border-b border-green-200 pb-3">
               <h2 className="text-xl font-semibold leading-tight">Daily Details</h2>
               <p className="text-xs text-gray-600 mt-1">Additional context for this date.</p>
@@ -515,7 +631,7 @@ const LogHealth = () => {
         </form>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
-          <form onSubmit={handleSymptomSubmit} className="flex flex-col bg-white border border-green-300 bg-gradient-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm space-y-3 h-full">
+          <form onSubmit={handleSymptomSubmit} className="flex flex-col bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm space-y-3 h-full">
             <div className="flex items-center justify-between border-b border-green-200 pb-3">
               <h2 className="text-xl font-semibold leading-tight">Symptoms</h2>
               <button
@@ -523,7 +639,7 @@ const LogHealth = () => {
                 disabled={!isAuthenticated || symptomSubmitting}
                 className="inline-flex items-center justify-center rounded-xl bg-green-600 px-3 py-1.5 text-sm font-medium text-white shadow-md transition-all hover:bg-green-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {symptomSubmitting ? 'Saving...' : 'Add Symptom'}
+                {symptomSubmitting ? 'Saving...' : editingSymptomId ? 'Update Symptom' : 'Add Symptom'}
               </button>
             </div>
 
@@ -553,17 +669,46 @@ const LogHealth = () => {
 
             {symptomError && <p className="text-sm text-red-600">{symptomError}</p>}
 
-            <div className="pt-1 space-y-1">
+            {editingSymptomId && (
+              <button
+                type="button"
+                onClick={cancelEditSymptom}
+                className="self-start text-xs rounded-lg border border-gray-200 bg-white px-2 py-1 hover:border-green-400 cursor-pointer"
+              >
+                Cancel Editing
+              </button>
+            )}
+
+            <div className="pt-1 space-y-2">
               <p className="text-xs text-gray-600">Entries this day: {symptoms.length}</p>
-              {symptoms.slice(0, 3).map((s) => (
-                <p key={s.id} className="text-sm text-gray-700">
-                  {s.symptom_name} {s.severity !== null ? `(sev ${s.severity})` : ''}
-                </p>
+              {symptoms.map((s) => (
+                <div key={s.id} className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1">
+                  <p className="text-sm text-gray-700">
+                    {s.symptom_name} {s.severity !== null ? `(sev ${s.severity})` : ''}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => startEditSymptom(s.id)}
+                      className="text-xs rounded-lg border border-gray-200 bg-white px-2 py-1 hover:border-green-400 cursor-pointer"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteSymptom(s.id)}
+                      disabled={deletingSymptomId === s.id}
+                      className="text-xs rounded-lg border border-red-200 bg-white px-2 py-1 text-red-700 hover:border-red-400 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {deletingSymptomId === s.id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
           </form>
 
-          <form onSubmit={handleBowelSubmit} className="flex flex-col bg-white border border-green-300 bg-gradient-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm space-y-3 h-full">
+          <form onSubmit={handleBowelSubmit} className="flex flex-col bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm space-y-3 h-full">
             <div className="flex items-center justify-between border-b border-green-200 pb-3">
               <h2 className="text-xl font-semibold leading-tight">Bowel Entries</h2>
               <button
@@ -571,7 +716,7 @@ const LogHealth = () => {
                 disabled={!isAuthenticated || bowelSubmitting}
                 className="inline-flex items-center justify-center rounded-xl bg-green-600 px-3 py-1.5 text-sm font-medium text-white shadow-md transition-all hover:bg-green-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {bowelSubmitting ? 'Saving...' : 'Add Bowel'}
+                {bowelSubmitting ? 'Saving...' : editingBowelId ? 'Update Bowel' : 'Add Bowel'}
               </button>
             </div>
 
@@ -631,12 +776,41 @@ const LogHealth = () => {
 
             {bowelError && <p className="text-sm text-red-600">{bowelError}</p>}
 
-            <div className="pt-1 space-y-1">
+            {editingBowelId && (
+              <button
+                type="button"
+                onClick={cancelEditBowel}
+                className="self-start text-xs rounded-lg border border-gray-200 bg-white px-2 py-1 hover:border-green-400 cursor-pointer"
+              >
+                Cancel Editing
+              </button>
+            )}
+
+            <div className="pt-1 space-y-2">
               <p className="text-xs text-gray-600">Entries this day: {bowels.length}</p>
-              {bowels.slice(0, 3).map((b) => (
-                <p key={b.id} className="text-sm text-gray-700">
-                  Bristol: {b.bristol_type ?? '-'} | Urgency: {b.urgency_level ?? '-'}
-                </p>
+              {bowels.map((b) => (
+                <div key={b.id} className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1">
+                  <p className="text-sm text-gray-700">
+                    Bristol: {b.bristol_type ?? '-'} | Urgency: {b.urgency_level ?? '-'}
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => startEditBowel(b.id)}
+                      className="text-xs rounded-lg border border-gray-200 bg-white px-2 py-1 hover:border-green-400 cursor-pointer"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteBowel(b.id)}
+                      disabled={deletingBowelId === b.id}
+                      className="text-xs rounded-lg border border-red-200 bg-white px-2 py-1 text-red-700 hover:border-red-400 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      {deletingBowelId === b.id ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
           </form>
@@ -647,3 +821,4 @@ const LogHealth = () => {
 }
 
 export default LogHealth
+
