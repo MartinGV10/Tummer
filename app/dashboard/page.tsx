@@ -450,33 +450,33 @@ export default function DashboardPage() {
         </h1>
       </div>
 
-      <div className="w-full max-w-6xl mb-6 rounded-2xl border border-green-100 bg-gradient-to-r from-green-50 via-white to-emerald-50 p-4 shadow-sm">
+      <div className="w-full max-w-6xl mb-6 rounded-2xl border border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 p-4 shadow-sm">
         <p className="text-sm text-gray-700">
           Today is <span className="font-medium">{today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
         </p>
       </div>
 
       <div className="w-full max-w-6xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white border border-green-300 bg-gradient-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
+        <div className="bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
           <p className="text-sm text-gray-600">Meals Logged Today</p>
           <p className="text-3xl font-semibold mt-1">{mealsToday}</p>
         </div>
-        <div className="bg-white border border-green-300 bg-gradient-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
+        <div className="bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
           <p className="text-sm text-gray-600">Bowels Logged Today</p>
           <p className="text-3xl font-semibold mt-1">{bowelsToday}</p>
         </div>
-        <div className="bg-white border border-green-300 bg-gradient-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
+        <div className="bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
           <p className="text-sm text-gray-600">Symptoms Logged Today</p>
           <p className="text-3xl font-semibold mt-1">{symptomsToday}</p>
         </div>
-        <div className="bg-white border border-green-300 bg-gradient-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
+        <div className="bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
           <p className="text-sm text-gray-600">Days Since Last Symptom</p>
           <p className="text-3xl font-semibold mt-1">{daysSinceSymptom === null ? '-' : daysSinceSymptom}</p>
         </div>
       </div>
 
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-5 mb-6">
-        <section className="lg:col-span-8 bg-white border border-green-300 bg-gradient-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
+        <section className="lg:col-span-8 bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
           <div className="flex items-center justify-between mb-3 border-b border-green-200 pb-3">
             <h2 className="text-xl font-semibold flex items-center gap-2">
               <IconChartBar size={20} />
@@ -522,7 +522,7 @@ export default function DashboardPage() {
           </div>
         </section>
 
-        <section className="lg:col-span-4 bg-white border border-green-300 bg-gradient-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm space-y-3">
+        <section className="lg:col-span-4 bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm space-y-3">
           <h2 className="text-xl font-semibold border-b border-green-200 pb-3">What to Do Next</h2>
           <Link href="/trackMeals" className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3 hover:border-green-400 hover:text-green-700 transition-all">
             <span className="font-medium">Log a meal</span>
@@ -539,7 +539,7 @@ export default function DashboardPage() {
         </section>
       </div>
 
-      <div className="w-full max-w-6xl mb-6 bg-white border border-green-300 bg-gradient-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
+      <div className="w-full max-w-6xl mb-6 bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
         <div className="flex items-center justify-between mb-3 border-b border-green-200 pb-3">
           <h2 className="text-xl font-semibold flex items-center gap-2">
             <IconTrendingUp size={20} />
@@ -556,17 +556,32 @@ export default function DashboardPage() {
                 <th className="py-2 pr-2">Meals</th>
                 <th className="py-2 pr-2">Bowels</th>
                 <th className="py-2 pr-2">Symptoms</th>
+                <th className="py-2 pr-2">Stress</th>
+                <th className="py-2 pr-2">Sleep (hrs)</th>
+                <th className="py-2 pr-2">Overall Feeling</th>
+                <th className="py-2 pr-2">Flare Day</th>
+                <th className="py-2 pr-2">Energy</th>
+                <th className="py-2 pr-2">Hydration</th>
               </tr>
             </thead>
             <tbody>
-              {last7Days.map((d) => (
-                <tr key={`row-${d.key}`} className="border-b border-green-50 last:border-b-0">
-                  <td className="py-2 pr-2 font-medium text-gray-800">{new Date(`${d.key}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
-                  <td className="py-2 pr-2">{mealsByDay[d.key] ?? 0}</td>
-                  <td className="py-2 pr-2">{bowelsByDay[d.key] ?? 0}</td>
-                  <td className="py-2 pr-2">{symptomsByDay[d.key] ?? 0}</td>
-                </tr>
-              ))}
+              {last7Days.map((d) => {
+                const log = weeklyDailyLogs.find((l) => l.log_date === d.key)
+                return (
+                  <tr key={`row-${d.key}`} className="border-b border-green-50 last:border-b-0">
+                    <td className="py-2 pr-2 font-medium text-gray-800">{new Date(`${d.key}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
+                    <td className="py-2 pr-2">{mealsByDay[d.key] ?? 0}</td>
+                    <td className="py-2 pr-2">{bowelsByDay[d.key] ?? 0}</td>
+                    <td className="py-2 pr-2">{symptomsByDay[d.key] ?? 0}</td>
+                    <td className="py-2 pr-2">{log?.stress_level ?? '-'}</td>
+                    <td className="py-2 pr-2">{log?.sleep_hours ?? '-'}</td>
+                    <td className="py-2 pr-2">{log?.overall_feeling ?? '-'}</td>
+                    <td className="py-2 pr-2">{log?.flare_day === true ? 'Yes' : log?.flare_day === false ? 'No' : '-'}</td>
+                    <td className="py-2 pr-2">{log?.energy_level ?? '-'}</td>
+                    <td className="py-2 pr-2">{log?.hydration_level ?? '-'}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
