@@ -17,6 +17,7 @@ type ConditionGuide = {
   label: string
   summary: string
   causes: string
+  approachTitle: string
   dietApproach: string[]
   supplementsToDiscuss: string[]
   sampleMeals: string[]
@@ -30,6 +31,7 @@ const CONDITION_GUIDES: Record<string, ConditionGuide> = {
       "Crohn's disease is a chronic inflammatory bowel disease where inflammation can affect any part of the GI tract and may flare over time.",
     causes:
       'The exact cause is not fully known. It is linked to immune dysregulation, genetics, and environmental triggers such as infections, stress, and smoking.',
+    approachTitle: 'Condition-Aware Approach',
     dietApproach: [
       'During flares, use lower-residue and easier-to-digest meals to reduce gut irritation.',
       'When stable, reintroduce fiber gradually and monitor personal triggers in your logs.',
@@ -57,6 +59,7 @@ const CONDITION_GUIDES: Record<string, ConditionGuide> = {
       'Ulcerative colitis is an inflammatory bowel disease that affects the colon and rectum, causing inflammation and ulcers in the lining.',
     causes:
       'Cause is not fully known; likely immune dysregulation plus genetic and environmental factors. Symptom severity and triggers vary by person.',
+    approachTitle: 'Condition-Aware Approach',
     dietApproach: [
       'Use smaller, more frequent meals if larger meals worsen urgency or cramping.',
       'Reduce high-fat and highly spicy foods during flares.',
@@ -84,6 +87,7 @@ const CONDITION_GUIDES: Record<string, ConditionGuide> = {
       'IBS is a disorder of gut-brain interaction that can cause abdominal pain, bloating, constipation, diarrhea, or mixed bowel changes.',
     causes:
       'Common drivers include gut sensitivity, motility changes, stress response, and food triggers. There is no single cause for all people.',
+    approachTitle: 'Condition-Aware Approach',
     dietApproach: [
       'A guided low FODMAP process may help identify carbohydrate triggers for some IBS users.',
       'Focus on one change at a time so symptom responses are easier to interpret.',
@@ -111,6 +115,7 @@ const CONDITION_GUIDES: Record<string, ConditionGuide> = {
       'Celiac disease is an autoimmune condition where gluten exposure damages the small intestine in susceptible individuals.',
     causes:
       'It is triggered by gluten in people with a genetic predisposition. Strict lifelong gluten avoidance is the core treatment.',
+    approachTitle: 'Condition-Aware Approach',
     dietApproach: [
       'Use strict gluten-free eating, including cross-contamination prevention.',
       'Verify sauces, spices, and packaged foods for hidden gluten ingredients.',
@@ -138,6 +143,7 @@ const CONDITION_GUIDES: Record<string, ConditionGuide> = {
       'Lactose intolerance happens when the body does not make enough lactase to digest lactose, leading to gas, bloating, and diarrhea after dairy.',
     causes:
       'It is commonly due to reduced lactase activity with age, but it can also follow gut infections or inflammation.',
+    approachTitle: 'Condition-Aware Approach',
     dietApproach: [
       'Limit high-lactose foods and test tolerance in small amounts.',
       'Use lactose-free dairy or low-lactose options when possible.',
@@ -165,6 +171,7 @@ const CONDITION_GUIDES: Record<string, ConditionGuide> = {
       'GERD is chronic acid reflux where stomach contents repeatedly flow back into the esophagus, causing heartburn or regurgitation.',
     causes:
       'Contributors can include lower esophageal sphincter weakness, large meals, late-night eating, obesity, and trigger foods.',
+    approachTitle: 'Condition-Aware Approach',
     dietApproach: [
       'Use smaller meals and avoid eating close to bedtime.',
       'Limit known triggers such as high-fat foods, alcohol, peppermint, and acidic foods if they worsen symptoms.',
@@ -194,6 +201,7 @@ const GENERIC_GUIDE: ConditionGuide = {
     'Digestive symptoms can come from many different conditions, and each person can respond differently to the same foods or routines.',
   causes:
     'Depending on the condition, causes may include inflammation, immune responses, enzyme deficiencies, motility changes, stress response, or food sensitivities.',
+  approachTitle: 'Condition-Aware Approach',
   dietApproach: [
     'Use a structured food and symptom log to identify your own patterns.',
     'Change one variable at a time (single food, portion, or timing) for clearer results.',
@@ -216,13 +224,58 @@ const GENERIC_GUIDE: ConditionGuide = {
   ],
 }
 
+const GUT_HEALTH_DEFAULT_GUIDE: ConditionGuide = {
+  label: 'General gut health improvement',
+  summary:
+    'You have not selected a digestive condition, so this plan focuses on building stronger gut health habits and identifying what helps you feel your best.',
+  causes:
+    'Gut comfort and digestion can be influenced by meal quality, fiber balance, hydration, sleep, stress, activity, and routine consistency.',
+  approachTitle: 'Gut-Health Foundation Plan',
+  dietApproach: [
+    'Build meals around whole foods: protein, tolerated fiber, and minimally processed carbs.',
+    'Increase fiber gradually and pair it with water so digestion can adapt comfortably.',
+    'Keep meal timing consistent and avoid large late-night meals when possible.',
+  ],
+  supplementsToDiscuss: [
+    'If needed, discuss a simple probiotic trial with your clinician or dietitian.',
+    'Consider whether vitamin D, B12, or iron testing is appropriate based on your intake and symptoms.',
+    'Only add one supplement at a time so you can clearly track effects.',
+  ],
+  sampleMeals: [
+    'Greek yogurt (or dairy-free alternative), oats, berries, and chia.',
+    'Salmon bowl with quinoa, cooked greens, and olive oil.',
+    'Lentil soup with sourdough toast and a side of cooked vegetables.',
+  ],
+  substitutions: [
+    'Swap sugary snacks for fruit plus nuts or seeds.',
+    'Swap highly processed meals for simple home-cooked bowls.',
+    'Swap low-fiber grains for higher-fiber options you tolerate well.',
+  ],
+}
+
 function normalize(value: string | null | undefined): string {
   return (value ?? '').toLowerCase().trim()
+}
+
+function isNoneLike(value: string): boolean {
+  if (!value) return true
+  return ['none', 'no condition', 'no conditions', 'n/a', 'na'].includes(value)
+}
+
+function normalizeProfileInput(value: string | null | undefined): string | null {
+  const cleaned = (value ?? '').trim()
+  if (!cleaned) return null
+  if (isNoneLike(cleaned.toLowerCase())) return null
+  return cleaned
 }
 
 function resolveGuide(conditionName: string | null, dietaryRestriction: string | null): ConditionGuide {
   const cond = normalize(conditionName)
   const restriction = normalize(dietaryRestriction)
+  const noConditionSelected = isNoneLike(cond)
+  const noRestrictionSelected = isNoneLike(restriction)
+
+  if (noConditionSelected && noRestrictionSelected) return GUT_HEALTH_DEFAULT_GUIDE
 
   if (cond.includes('crohn')) return CONDITION_GUIDES.crohns
   if (cond.includes('ulcerative') || cond.includes('colitis')) return CONDITION_GUIDES.ulcerative_colitis
@@ -231,10 +284,14 @@ function resolveGuide(conditionName: string | null, dietaryRestriction: string |
   if (cond.includes('gerd') || cond.includes('reflux')) return CONDITION_GUIDES.gerd
   if (cond.includes('ibs') || cond.includes('irritable bowel')) return CONDITION_GUIDES.ibs
 
+  if (noConditionSelected) return GUT_HEALTH_DEFAULT_GUIDE
+
   if (restriction.includes('fodmap')) return CONDITION_GUIDES.ibs
   if (restriction.includes('gluten')) return CONDITION_GUIDES.celiac
   if (restriction.includes('lactose') || restriction.includes('dairy')) return CONDITION_GUIDES.lactose
   if (restriction.includes('reflux') || restriction.includes('gerd')) return CONDITION_GUIDES.gerd
+
+  if (noRestrictionSelected) return GUT_HEALTH_DEFAULT_GUIDE
 
   return GENERIC_GUIDE
 }
@@ -263,7 +320,7 @@ const Support = () => {
 
       if (userError || !user) {
         setConditionName(null)
-        setDietaryRestriction(profile?.reason ?? null)
+        setDietaryRestriction(normalizeProfileInput(profile?.reason ?? null))
         setLoadingGuide(false)
         if (userError) setGuideError(userError.message)
         return
@@ -279,14 +336,14 @@ const Support = () => {
 
       if (profileRes.error || !profileRes.data) {
         setConditionName(null)
-        setDietaryRestriction(profile?.reason ?? null)
+        setDietaryRestriction(normalizeProfileInput(profile?.reason ?? null))
         setLoadingGuide(false)
         if (profileRes.error) setGuideError(profileRes.error.message)
         return
       }
 
       const profileMeta = profileRes.data as ProfileMetaRow
-      setDietaryRestriction(profileMeta.reason ?? profile?.reason ?? null)
+      setDietaryRestriction(normalizeProfileInput(profileMeta.reason ?? profile?.reason ?? null))
 
       if (!profileMeta.condition_id) {
         setConditionName(null)
@@ -310,7 +367,7 @@ const Support = () => {
       }
 
       const condition = conditionRes.data as ConditionRow
-      setConditionName(condition.name ?? null)
+      setConditionName(normalizeProfileInput(condition.name ?? null))
       setLoadingGuide(false)
     }
 
@@ -351,7 +408,7 @@ const Support = () => {
         <h2 className="text-xl font-semibold text-gray-900">{displayCondition}</h2>
         <p className="mt-2 text-sm text-gray-700">{resolvedGuide.summary}</p>
         <p className="mt-2 text-sm text-gray-700">
-          <span className="font-medium text-gray-900">What causes it (if applicable): </span>
+          <span className="font-medium text-gray-900">What causes it: </span>
           {resolvedGuide.causes}
         </p>
         {dietaryRestriction && (
@@ -361,9 +418,9 @@ const Support = () => {
         )}
       </div>
 
-      <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-10 gap-5 mb-5">
-        <section className="lg:col-span-7 bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
-          <h3 className="text-lg font-semibold border-b border-green-200 pb-3">Condition-Aware Approach</h3>
+      <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 mb-5">
+        <section className="md:col-span-2 lg:col-span-7 bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
+          <h3 className="text-lg font-semibold border-b border-green-200 pb-3">{resolvedGuide.approachTitle}</h3>
           <ul className="mt-3 list-disc pl-5 text-sm text-gray-700 space-y-2">
             {resolvedGuide.dietApproach.map((item) => (
               <li key={`approach-${item}`}>{item}</li>
@@ -371,7 +428,7 @@ const Support = () => {
           </ul>
         </section>
 
-        <section className="lg:col-span-5 bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
+        <section className="md:col-span-2 lg:col-span-5 bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
           <h3 className="text-lg font-semibold border-b border-green-200 pb-3">Supplements to Discuss</h3>
           <ul className="mt-3 list-disc pl-5 text-sm text-gray-700 space-y-2">
             {resolvedGuide.supplementsToDiscuss.map((item) => (

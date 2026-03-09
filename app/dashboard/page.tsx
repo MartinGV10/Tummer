@@ -57,6 +57,14 @@ type DashboardAiCache = {
 const AI_CACHE_KEY = 'dashboard_ai_insights_v1'
 const AI_CACHE_TTL_MS = 15 * 60 * 1000
 
+function normalizeProfileContextValue(value: string | null | undefined): string | null {
+  const normalized = (value ?? '').trim()
+  if (!normalized) return null
+  const lower = normalized.toLowerCase()
+  if (['none', 'no condition', 'no conditions', 'n/a', 'na'].includes(lower)) return null
+  return normalized
+}
+
 function toDateKey(d: Date): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -245,10 +253,10 @@ export default function DashboardPage() {
 
       if (profileMetaRes.error || !profileMetaRes.data) {
         setProfileCondition(null)
-        setProfileRestriction(profile?.reason ?? null)
+        setProfileRestriction(normalizeProfileContextValue(profile?.reason ?? null))
       } else {
         const profileMeta = profileMetaRes.data as ProfileMetaRow
-        setProfileRestriction(profileMeta.reason ?? profile?.reason ?? null)
+        setProfileRestriction(normalizeProfileContextValue(profileMeta.reason ?? profile?.reason ?? null))
 
         if (profileMeta.condition_id) {
           const conditionRes = await supabase
@@ -263,7 +271,7 @@ export default function DashboardPage() {
             setProfileCondition(null)
           } else {
             const conditionRow = conditionRes.data as ConditionRow
-            setProfileCondition(conditionRow.name ?? null)
+            setProfileCondition(normalizeProfileContextValue(conditionRow.name ?? null))
           }
         } else {
           setProfileCondition(null)
