@@ -5,6 +5,12 @@ import { Avatar, Callout } from '@radix-ui/themes'
 import { IconInfoCircle, IconPhotoEdit, IconTrashX } from '@tabler/icons-react'
 import { supabase } from '@/lib/supabaseClient'
 import { GENDER_OPTIONS, normalizeGenderValue } from '@/src/shared/profileGender'
+
+type Condition = {
+  id: string
+  name: string
+}
+
 const INPUT_CLASS =
   'w-full rounded-xl border border-green-200 bg-white px-3 py-2.5 text-sm text-gray-800 shadow-sm transition-all outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100'
 
@@ -18,6 +24,8 @@ const Settings = () => {
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
   const [gender, setGender] = useState('')
+  const [conditionId, setConditionId] = useState('')
+  const [conditions, setConditions] = useState<Condition[]>([])
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -29,6 +37,7 @@ const Settings = () => {
       setLastname(profile.last_name ?? '')
       setUsername(profile.username ?? '')
       setGender(normalizeGenderValue(profile.gender) ?? '')
+      setConditionId(profile.condition_id ?? '')
     }
     
     const loadEmail = async () => {
@@ -42,8 +51,25 @@ const Settings = () => {
     }
 
     loadEmail()
-
   }, [profile])
+
+  useEffect(() => {
+    const loadConditions = async () => {
+      const { data, error } = await supabase
+        .from('conditions')
+        .select('id, name')
+        .order('name', { ascending: true })
+
+      if (error) {
+        console.error('Error loading conditions:', error)
+        return
+      }
+
+      setConditions((data ?? []) as Condition[])
+    }
+
+    void loadConditions()
+  }, [])
 
   useEffect(() => {
     if (!message) return
@@ -68,6 +94,7 @@ const Settings = () => {
         first_name: firstname,
         last_name: lastname,
         username: username,
+        condition_id: conditionId || null,
         gender: normalizeGenderValue(gender),
       })
 
@@ -289,6 +316,20 @@ const deleteAvatar = async () => {
                       <option value="">Select gender</option>
                       {GENDER_OPTIONS.map((option) => (
                         <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-sm font-medium text-gray-800">Condition</label>
+                    <select
+                      className={INPUT_CLASS}
+                      value={conditionId}
+                      onChange={(e) => setConditionId(e.target.value)}
+                    >
+                      <option value="">Select condition</option>
+                      {conditions.map((condition) => (
+                        <option key={condition.id} value={condition.id}>{condition.name}</option>
                       ))}
                     </select>
                   </div>

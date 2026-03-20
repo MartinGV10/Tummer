@@ -9,6 +9,7 @@ export type Profile = {
   first_name: string
   last_name: string
   username: string
+  condition_id: string | null
   gender: string | null
   reason: string | null
   avatar_url: string | null
@@ -51,7 +52,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, username, gender, reason, avatar_url')
+        .select('id, first_name, last_name, username, condition_id, gender, reason, avatar_url')
         .eq('id', session.user.id)
         .maybeSingle()
 
