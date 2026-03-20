@@ -45,42 +45,64 @@ export function MealProvider({ children }: { children: React.ReactNode }) {
 		setLoading(true)
 		setError(null)
 
-		const {
-			data: { user },
-			error: userError,
-		} = await supabase.auth.getUser()
+		try {
+			const {
+				data: { session },
+			} = await supabase.auth.getSession()
 
-		if (userError || !user) {
+			if (!session) {
+				setIsAuthenticated(false)
+				setUserId(null)
+				setMeals([])
+				return
+			}
+
+			setIsAuthenticated(true)
+			setUserId(session.user.id)
+
+			const { data, error } = await supabase
+				.from('meals')
+				.select('*')
+				.eq('user_id', session.user.id)
+				.order('eaten_at', { ascending: false })
+
+			if (error) {
+				setError(error.message)
+				setMeals([])
+				return
+			}
+
+			setMeals(data || [])
+		} catch (err) {
+			console.error('Unexpected error loading meals:', err)
+			setError('An unexpected error occurred while loading your meals')
+			setMeals([])
 			setIsAuthenticated(false)
 			setUserId(null)
-			setMeals([])
+		} finally {
 			setLoading(false)
-			if (userError) setError(userError.message)
-			return
 		}
-
-		setIsAuthenticated(true)
-		setUserId(user.id)
-
-		const { data, error } = await supabase
-			.from('meals')
-			.select('*')
-			.eq('user_id', user.id)
-			.order('eaten_at', { ascending: false })
-
-		if (error) {
-			setError(error.message)
-			setMeals([])
-		}
-		else {
-			setMeals(data || [])
-		}
-
-		setLoading(false)
 	}, [])
 
 	useEffect(() => {
 		loadInitialData()
+
+		const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+			if (!session) {
+				setIsAuthenticated(false)
+				setUserId(null)
+				setMeals([])
+				setError(null)
+				setLoading(false)
+				return
+			}
+
+			void loadInitialData()
+		})
+
+		return () => {
+			data?.subscription?.unsubscribe()
+		}
 	}, [loadInitialData])
 
 	const refreshMeals = useCallback(async () => {
