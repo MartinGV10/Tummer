@@ -611,6 +611,28 @@ function buildFinalInsight({
   return finalInsight
 }
 
+function buildFinalAlert({
+  alert,
+  watchNext,
+}: {
+  alert: string
+  watchNext: string
+}): string {
+  const MAX_ALERT_LEN = 260
+  const normalizedAlert = trimNicely(alert, MAX_ALERT_LEN)
+
+  if (!watchNext) {
+    return normalizedAlert
+  }
+
+  const watchNextText = ` Watch next: ${watchNext}`
+  if (normalizedAlert.length + watchNextText.length <= MAX_ALERT_LEN) {
+    return `${normalizedAlert}${watchNextText}`
+  }
+
+  return normalizedAlert
+}
+
 function buildSystemPrompt(): string {
   return [
     'You are an insight engine for a premium gut-health tracking app.',
@@ -794,10 +816,10 @@ export async function generateDashboardInsights(
       insight,
       likelyDrivers,
     })
-    const finalAlert = sanitizeOutput(
-      [alert, watchNext ? `Watch next: ${watchNext}` : ''].filter(Boolean).join(' '),
-      260
-    )
+    const finalAlert = buildFinalAlert({
+      alert,
+      watchNext,
+    })
 
     if (!finalInsight || !finalAlert) {
       return fallbackInsight(payload)
