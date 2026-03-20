@@ -1,5 +1,6 @@
 import 'server-only'
 import OpenAI from 'openai'
+import { DASHBOARD_AI_EMPTY_STATE, hasDashboardInsightInputs } from '@/src/shared/dashboardAi'
 
 export type DashboardAiPayload = {
   today: string
@@ -550,12 +551,64 @@ function fallbackInsight(payload: DashboardAiPayload): DashboardAiResult {
     alert = `Keep logging daily so the app can better connect symptoms with sleep, stress, hydration, bowel changes, flare days, and other repeating context.`
   }
 
-  return { insight, alert }
+  return {
+    insight: trimNicely(insight, 460),
+    alert: trimNicely(alert, 260),
+  }
 }
 
 function sanitizeOutput(value: unknown, maxLen: number): string {
   if (typeof value !== 'string') return ''
   return value.replace(/\s+/g, ' ').trim().slice(0, maxLen)
+}
+
+function trimNicely(text: string, maxLen: number): string {
+  const normalized = text.replace(/\s+/g, ' ').trim()
+  if (normalized.length <= maxLen) return normalized
+
+  const slice = normalized.slice(0, maxLen)
+  const sentenceCut = Math.max(slice.lastIndexOf('. '), slice.lastIndexOf('! '), slice.lastIndexOf('? '))
+  if (sentenceCut >= Math.floor(maxLen * 0.6)) {
+    return slice.slice(0, sentenceCut + 1).trim()
+  }
+
+  const wordCut = slice.lastIndexOf(' ')
+  if (wordCut >= Math.floor(maxLen * 0.6)) {
+    return `${slice.slice(0, wordCut).trim()}...`
+  }
+
+  return `${slice.trimEnd()}...`
+}
+
+function buildFinalInsight({
+  insightTitle,
+  insight,
+  likelyDrivers,
+}: {
+  insightTitle: string
+  insight: string
+  likelyDrivers: string[]
+}): string {
+  const MAX_INSIGHT_LEN = 460
+  const titlePrefix = insightTitle ? `${insightTitle}: ` : ''
+  const titleBudget = titlePrefix.length
+  if (titleBudget >= MAX_INSIGHT_LEN) {
+    return trimNicely(titlePrefix, MAX_INSIGHT_LEN)
+  }
+
+  const normalizedInsight = trimNicely(insight, MAX_INSIGHT_LEN - titleBudget)
+  let finalInsight = `${titlePrefix}${normalizedInsight}`.trim()
+
+  if (likelyDrivers.length === 0) {
+    return finalInsight
+  }
+
+  const driversText = ` Likely drivers: ${likelyDrivers.join(', ')}.`
+  if (finalInsight.length + driversText.length <= MAX_INSIGHT_LEN) {
+    return `${finalInsight}${driversText}`
+  }
+
+  return finalInsight
 }
 
 function buildSystemPrompt(): string {
@@ -613,6 +666,10 @@ function buildUserPrompt(): string {
 export async function generateDashboardInsights(
   payload: DashboardAiPayload
 ): Promise<DashboardAiResult> {
+  if (!hasDashboardInsightInputs(payload)) {
+    return DASHBOARD_AI_EMPTY_STATE
+  }
+
   if (!process.env.OPENAI_API_KEY) {
     return fallbackInsight(payload)
   }
@@ -732,12 +789,11 @@ export async function generateDashboardInsights(
       return fallbackInsight(payload)
     }
 
-    const combinedInsightParts = [
-      insightTitle ? `${insightTitle}: ${insight}` : insight,
-      likelyDrivers.length > 0 ? `Likely drivers: ${likelyDrivers.join(', ')}.` : '',
-    ].filter(Boolean)
-
-    const finalInsight = sanitizeOutput(combinedInsightParts.join(' '), 460)
+    const finalInsight = buildFinalInsight({
+      insightTitle,
+      insight,
+      likelyDrivers,
+    })
     const finalAlert = sanitizeOutput(
       [alert, watchNext ? `Watch next: ${watchNext}` : ''].filter(Boolean).join(' '),
       260

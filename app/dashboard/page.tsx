@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useProfile } from '@/src/context/ProfileContext'
 import useMeals from '@/src/context/TrackedMealsContext'
 import { supabase } from '@/lib/supabaseClient'
+import { DASHBOARD_AI_EMPTY_STATE, hasDashboardInsightInputs } from '@/src/shared/dashboardAi'
 
 type DailyLogRow = {
   id: string
@@ -121,7 +122,7 @@ function findTriggerMatch(mealName: string, triggerFoods: string[]): string | nu
 
 export default function DashboardPage() {
   const { profile } = useProfile()
-  const { meals } = useMeals()
+  const { meals, loading: loadingMeals } = useMeals()
 
   const [loadingHealth, setLoadingHealth] = useState(true)
   const [healthError, setHealthError] = useState<string | null>(null)
@@ -385,10 +386,24 @@ export default function DashboardPage() {
     [todayKey, mealsToday, bowelsToday, symptomsToday, daysSinceSymptom, last7Days, mealsByDay, bowelsByDay, symptomsByDay, weeklyDailyLogs, triggerFoods, weeklyTriggerMeals, profileCondition, profileRestriction]
   )
 
+  const hasAiInputs = useMemo(
+    () => hasDashboardInsightInputs(aiPayload),
+    [aiPayload]
+  )
+
+  const isDashboardDataLoading = loadingMeals || loadingHealth
+
   useEffect(() => {
     let active = true
     const loadAi = async () => {
-      if (!profile || loadingHealth) return
+      if (!profile || isDashboardDataLoading) return
+
+      if (!hasAiInputs) {
+        setAiData(DASHBOARD_AI_EMPTY_STATE)
+        setAiError(null)
+        setAiLoading(false)
+        return
+      }
 
       const signature = JSON.stringify(aiPayload)
       const rawCache = typeof window !== 'undefined' ? window.localStorage.getItem(AI_CACHE_KEY) : null
@@ -445,7 +460,7 @@ export default function DashboardPage() {
     return () => {
       active = false
     }
-  }, [profile, loadingHealth, aiPayload])
+  }, [profile, isDashboardDataLoading, aiPayload, hasAiInputs])
 
   if (!profile) return null
 
@@ -467,19 +482,21 @@ export default function DashboardPage() {
       <div className="w-full max-w-6xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
           <p className="text-sm text-gray-600">Meals Logged Today</p>
-          <p className="text-3xl font-semibold mt-1">{mealsToday}</p>
+          <p className="text-3xl font-semibold mt-1">{isDashboardDataLoading ? '-' : mealsToday}</p>
         </div>
         <div className="bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
           <p className="text-sm text-gray-600">Bowels Logged Today</p>
-          <p className="text-3xl font-semibold mt-1">{bowelsToday}</p>
+          <p className="text-3xl font-semibold mt-1">{isDashboardDataLoading ? '-' : bowelsToday}</p>
         </div>
         <div className="bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
           <p className="text-sm text-gray-600">Symptoms Logged Today</p>
-          <p className="text-3xl font-semibold mt-1">{symptomsToday}</p>
+          <p className="text-3xl font-semibold mt-1">{isDashboardDataLoading ? '-' : symptomsToday}</p>
         </div>
         <div className="bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
           <p className="text-sm text-gray-600">Days Since Last Symptom</p>
-          <p className="text-3xl font-semibold mt-1">{daysSinceSymptom === null ? '-' : daysSinceSymptom}</p>
+          <p className="text-3xl font-semibold mt-1">
+            {isDashboardDataLoading ? '-' : daysSinceSymptom === null ? '-' : daysSinceSymptom}
+          </p>
         </div>
       </div>
 
@@ -496,36 +513,48 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="rounded-xl border border-green-200 bg-white/80 p-4">
               <p className="text-sm font-medium text-gray-700 mb-3">Bowels per day</p>
-              <div className="h-40 flex items-end gap-2">
-                {last7Days.map((d) => {
-                  const value = bowelsByDay[d.key] ?? 0
-                  const heightPx = Math.max(10, Math.round((value / maxBowels) * 120))
-                  return (
-                    <div key={`bowel-${d.key}`} className="h-full flex-1 flex flex-col justify-end items-center gap-1">
-                      <span className="text-[11px] text-gray-600">{value}</span>
-                      <div title={`${d.key}: ${value}`} className="w-full rounded-md bg-green-500/80 hover:bg-green-600 transition-all" style={{ height: `${heightPx}px` }} />
-                      <span className="text-[11px] text-gray-600">{d.label}</span>
-                    </div>
-                  )
-                })}
-              </div>
+              {isDashboardDataLoading ? (
+                <div className="h-40 flex items-center justify-center">
+                  <p className="text-sm text-gray-500">Loading chart...</p>
+                </div>
+              ) : (
+                <div className="h-40 flex items-end gap-2">
+                  {last7Days.map((d) => {
+                    const value = bowelsByDay[d.key] ?? 0
+                    const heightPx = Math.max(10, Math.round((value / maxBowels) * 120))
+                    return (
+                      <div key={`bowel-${d.key}`} className="h-full flex-1 flex flex-col justify-end items-center gap-1">
+                        <span className="text-[11px] text-gray-600">{value}</span>
+                        <div title={`${d.key}: ${value}`} className="w-full rounded-md bg-green-500/80 hover:bg-green-600 transition-all" style={{ height: `${heightPx}px` }} />
+                        <span className="text-[11px] text-gray-600">{d.label}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="rounded-xl border border-green-200 bg-white/80 p-4">
               <p className="text-sm font-medium text-gray-700 mb-3">Meals per day</p>
-              <div className="h-40 flex items-end gap-2">
-                {last7Days.map((d) => {
-                  const value = mealsByDay[d.key] ?? 0
-                  const heightPx = Math.max(10, Math.round((value / maxMeals) * 120))
-                  return (
-                    <div key={`meal-${d.key}`} className="h-full flex-1 flex flex-col justify-end items-center gap-1">
-                      <span className="text-[11px] text-gray-600">{value}</span>
-                      <div title={`${d.key}: ${value}`} className="w-full rounded-md bg-emerald-500/80 hover:bg-emerald-600 transition-all" style={{ height: `${heightPx}px` }} />
-                      <span className="text-[11px] text-gray-600">{d.label}</span>
-                    </div>
-                  )
-                })}
-              </div>
+              {isDashboardDataLoading ? (
+                <div className="h-40 flex items-center justify-center">
+                  <p className="text-sm text-gray-500">Loading chart...</p>
+                </div>
+              ) : (
+                <div className="h-40 flex items-end gap-2">
+                  {last7Days.map((d) => {
+                    const value = mealsByDay[d.key] ?? 0
+                    const heightPx = Math.max(10, Math.round((value / maxMeals) * 120))
+                    return (
+                      <div key={`meal-${d.key}`} className="h-full flex-1 flex flex-col justify-end items-center gap-1">
+                        <span className="text-[11px] text-gray-600">{value}</span>
+                        <div title={`${d.key}: ${value}`} className="w-full rounded-md bg-emerald-500/80 hover:bg-emerald-600 transition-all" style={{ height: `${heightPx}px` }} />
+                        <span className="text-[11px] text-gray-600">{d.label}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </section>
@@ -624,9 +653,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {(loadingHealth || healthError) && (
+      {(isDashboardDataLoading || healthError) && (
         <div className="w-full max-w-6xl mt-5">
-          {loadingHealth && <p className="text-sm text-gray-600">Loading dashboard health data...</p>}
+          {isDashboardDataLoading && <p className="text-sm text-gray-600">Loading dashboard health data...</p>}
           {healthError && <p className="text-sm text-red-600">{healthError}</p>}
         </div>
       )}
