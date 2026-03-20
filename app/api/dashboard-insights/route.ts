@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateDashboardInsights, type DashboardAiPayload } from '@/src/server/ai/dashboardInsights'
+import {
+  generateDashboardInsights,
+  type DashboardAiPayload,
+} from '@/src/server/ai/dashboardInsights'
+import { DASHBOARD_AI_EMPTY_STATE, hasDashboardInsightInputs } from '@/src/shared/dashboardAi'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,6 +61,10 @@ export async function POST(req: NextRequest) {
 
   if (!body || !Array.isArray(body.weeklyMeals) || !Array.isArray(body.weeklyBowels) || !Array.isArray(body.weeklySymptoms)) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+  }
+
+  if (!hasDashboardInsightInputs(body)) {
+    return NextResponse.json(DASHBOARD_AI_EMPTY_STATE)
   }
 
   const payloadKey = JSON.stringify(body)
