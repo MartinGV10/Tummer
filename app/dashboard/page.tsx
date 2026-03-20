@@ -141,6 +141,10 @@ export default function DashboardPage() {
   const todayKey = useMemo(() => toDateKey(today), [today])
   const last7Days = useMemo(() => buildLastNDays(7), [])
   const rangeStart = last7Days[0]?.key ?? todayKey
+  const showPeriodDay = useMemo(() => {
+    if (!profile) return false
+    return (profile.gender ?? '').trim().toLowerCase() !== 'male'
+  }, [profile])
 
   useEffect(() => {
     let active = true
@@ -373,7 +377,7 @@ export default function DashboardPage() {
           hydration_level: row?.hydration_level ?? null,
           overall_feeling: row?.overall_feeling ?? null,
           flare_day: row?.flare_day ?? null,
-          period_day: row?.period_day ?? null,
+          period_day: showPeriodDay ? (row?.period_day ?? null) : null,
         }
       }),
       triggerFoods,
@@ -383,7 +387,7 @@ export default function DashboardPage() {
         dietaryRestriction: profileRestriction,
       },
     }),
-    [todayKey, mealsToday, bowelsToday, symptomsToday, daysSinceSymptom, last7Days, mealsByDay, bowelsByDay, symptomsByDay, weeklyDailyLogs, triggerFoods, weeklyTriggerMeals, profileCondition, profileRestriction]
+    [todayKey, mealsToday, bowelsToday, symptomsToday, daysSinceSymptom, last7Days, mealsByDay, bowelsByDay, symptomsByDay, weeklyDailyLogs, triggerFoods, weeklyTriggerMeals, profileCondition, profileRestriction, showPeriodDay]
   )
 
   const hasAiInputs = useMemo(
@@ -597,6 +601,7 @@ export default function DashboardPage() {
                 <th className="py-2 pr-2">Sleep (hrs)</th>
                 <th className="py-2 pr-2">Overall Feeling</th>
                 <th className="py-2 pr-2">Flare Day</th>
+                {showPeriodDay && <th className="py-2 pr-2">Period Day</th>}
                 <th className="py-2 pr-2">Energy</th>
                 <th className="py-2 pr-2">Hydration</th>
               </tr>
@@ -614,6 +619,7 @@ export default function DashboardPage() {
                     <td className="py-2 pr-2">{log?.sleep_hours ?? '-'}</td>
                     <td className="py-2 pr-2">{log?.overall_feeling ?? '-'}</td>
                     <td className="py-2 pr-2">{log?.flare_day === true ? 'Yes' : log?.flare_day === false ? 'No' : '-'}</td>
+                    {showPeriodDay && <td className="py-2 pr-2">{log?.period_day === true ? 'Yes' : log?.period_day === false ? 'No' : '-'}</td>}
                     <td className="py-2 pr-2">{log?.energy_level ?? '-'}</td>
                     <td className="py-2 pr-2">{log?.hydration_level ?? '-'}</td>
                   </tr>

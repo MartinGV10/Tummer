@@ -1,5 +1,6 @@
 'use client'
 import { useHealth } from '@/src/context/HealthContext'
+import { useProfile } from '@/src/context/ProfileContext'
 import { Calendar } from '../components/ui/calendar'
 import React, { useEffect, useMemo, useState } from 'react'
 import { RadioGroup, Separator } from '@radix-ui/themes'
@@ -24,6 +25,7 @@ function toDateTimeLocalValue(value: string | null | undefined): string {
   return `${year}-${month}-${day}T${hours}:${minutes}`
 }
 const LogHealth = () => {
+  const { profile } = useProfile()
   const { daily, symptoms, bowels, refreshHealth, upsertDaily, addSymptom, updateSymptom, deleteSymptom, addBowel, updateBowel, deleteBowel, isAuthenticated } = useHealth()
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [open, setOpen] = useState(false)
@@ -66,6 +68,11 @@ const LogHealth = () => {
     return toLocalDateKey(date)
   }, [date])
 
+  const showPeriodDay = useMemo(() => {
+    if (!profile) return false
+    return (profile.gender ?? '').trim().toLowerCase() !== 'male'
+  }, [profile])
+
   const onPickDate = (d: Date | undefined) => {
     setDate(d)
     setOpen(false)
@@ -104,10 +111,10 @@ const LogHealth = () => {
     setHydrate(daily.hydration_level?.toString() ?? '')
     setWeight(daily.weight?.toString() ?? '')
     setFlareDay(daily.flare_day === null ? 'unset' : daily.flare_day ? 'yes' : 'no')
-    setPeriodDay(daily.period_day === null ? 'unset' : daily.period_day ? 'yes' : 'no')
+    setPeriodDay(showPeriodDay ? (daily.period_day === null ? 'unset' : daily.period_day ? 'yes' : 'no') : 'unset')
     setMedicationChanges(daily.medication_changes ?? '')
     setNotes(daily.notes ?? '')
-  }, [daily, selectedDateKey])
+  }, [daily, selectedDateKey, showPeriodDay])
 
   useEffect(() => {
     if (!submitMessage) return
@@ -141,7 +148,7 @@ const LogHealth = () => {
       hydration_level: hydrate === '' ? undefined : Number(hydrate),
       weight: weightNum,
       flare_day: flareDay === 'unset' ? undefined : flareDay === 'yes',
-      period_day: periodDay === 'unset' ? undefined : periodDay === 'yes',
+      period_day: showPeriodDay ? (periodDay === 'unset' ? undefined : periodDay === 'yes') : undefined,
       medication_changes: medicationChanges.trim() === '' ? undefined : medicationChanges,
       notes: notes.trim() === '' ? undefined : notes,
     }
@@ -593,14 +600,16 @@ const LogHealth = () => {
                 </div>
               </div>
 
-              <div>
-                <p className="text-sm font-medium mb-2">Period day?</p>
-                <div className="flex gap-2">
-                  <button type="button" onClick={() => setPeriodDay('yes')} className={`px-3 py-1.5 rounded-lg border text-sm cursor-pointer ${periodDay === 'yes' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-400'}`}>Yes</button>
-                  <button type="button" onClick={() => setPeriodDay('no')} className={`px-3 py-1.5 rounded-lg border text-sm cursor-pointer ${periodDay === 'no' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-400'}`}>No</button>
-                  <button type="button" onClick={() => setPeriodDay('unset')} className={`px-3 py-1.5 rounded-lg border text-sm cursor-pointer ${periodDay === 'unset' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-400'}`}>Clear</button>
+              {showPeriodDay && (
+                <div>
+                  <p className="text-sm font-medium mb-2">Period day?</p>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => setPeriodDay('yes')} className={`px-3 py-1.5 rounded-lg border text-sm cursor-pointer ${periodDay === 'yes' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-400'}`}>Yes</button>
+                    <button type="button" onClick={() => setPeriodDay('no')} className={`px-3 py-1.5 rounded-lg border text-sm cursor-pointer ${periodDay === 'no' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-400'}`}>No</button>
+                    <button type="button" onClick={() => setPeriodDay('unset')} className={`px-3 py-1.5 rounded-lg border text-sm cursor-pointer ${periodDay === 'unset' ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-200 hover:border-green-400'}`}>Clear</button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <p className="text-sm font-medium mb-1">Weight</p>

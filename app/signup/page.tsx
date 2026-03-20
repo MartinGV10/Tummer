@@ -9,6 +9,8 @@ type Condition = {
   name: string
 }
 
+const GENDER_OPTIONS = ['Female', 'Male', 'Non-binary', 'Prefer not to say'] as const
+
 const Signup = () => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -16,6 +18,7 @@ const Signup = () => {
   const [firstname, setFirstname] = useState('')
   const [lastname, setLastname] = useState('')
   const [username, setUsername] = useState('')
+  const [gender, setGender] = useState<string>('')
   const [conditionId, setConditionId] = useState<string | ''>('')
   const [reason, setReason] = useState('')
 
@@ -47,7 +50,7 @@ const Signup = () => {
   }, [])
 
   const handleSignup = () => {
-    if (!email || !password || !username || !firstname || !lastname) {
+    if (!email || !password || !username || !firstname || !lastname || !gender) {
       setError('Please fill in the required fields')
       return
     }
@@ -66,7 +69,13 @@ const Signup = () => {
         data: signUpData,
         error: signUpError
       } = await supabase.auth.signUp({
-        email, password
+        email,
+        password,
+        options: {
+          data: {
+            gender,
+          },
+        },
       })
 
       if (signUpError) {
@@ -101,6 +110,7 @@ const Signup = () => {
       setFirstname('')
       setLastname('')
       setPassword('')
+      setGender('')
       setReason('')
       setUsername('')
       setReason('')
@@ -128,6 +138,12 @@ const Signup = () => {
             <input type="text" placeholder='Username' value={username} onKeyDown={e => e.key === 'Enter' && handleSignup()} onChange={e => setUsername(e.target.value)} className='shadow-lg w-full bg-gray-50 border-2 rounded-lg p-2 font-medium border-green-600'/>
             <input type="text" placeholder='First Name' value={firstname} onKeyDown={e => e.key === 'Enter' && handleSignup()} onChange={e => setFirstname(e.target.value)} className='shadow-lg w-full bg-gray-50 border-2 rounded-lg p-2 font-medium border-green-600'/>
             <input type="text" placeholder='Last Name' value={lastname} onKeyDown={e => e.key === 'Enter' && handleSignup()} onChange={e => setLastname(e.target.value)} className='shadow-lg w-full bg-gray-50 border-2 rounded-lg p-2 font-medium border-green-600'/>
+            <select value={gender} onChange={e => setGender(e.target.value)} className='shadow-lg w-full bg-gray-50 border-2 rounded-lg p-2 font-medium border-green-600'>
+              <option value="">Select Gender</option>
+              {GENDER_OPTIONS.map((option) => (
+                <option key={option} value={option}>{option}</option>
+              ))}
+            </select>
             <select value={conditionId} onChange={e => setConditionId(e.target.value)} className='shadow-lg w-full bg-gray-50 border-2 rounded-lg p-2 font-medium border-green-600'>
               <option value="">Select a Condition</option>
                 {conditions.map(cond => (

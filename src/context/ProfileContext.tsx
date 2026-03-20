@@ -9,6 +9,7 @@ export type Profile = {
   first_name: string
   last_name: string
   username: string
+  gender: string | null
   reason: string | null
   avatar_url: string | null
 }
@@ -70,7 +71,12 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      setProfile(data as Profile)
+      setProfile({
+        ...(data as Omit<Profile, 'gender'>),
+        gender: typeof session.user.user_metadata?.gender === 'string'
+          ? session.user.user_metadata.gender
+          : null,
+      })
       setError(null)
     } catch (err) {
       console.error('Unexpected error loading profile:', err)
@@ -110,11 +116,36 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    const { error } = await supabase.from('profiles').update(data).eq('id', profile.id)
+    const { gender, ...profileData } = data
 
-    if (error) {
-      console.error(error)
-      throw error
+    if (Object.keys(profileData).length > 0) {
+      const { error } = await supabase.from('profiles').update(profileData).eq('id', profile.id)
+
+      if (error) {
+        console.error(error)
+        throw error
+      }
+    }
+
+    if (gender !== undefined) {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      const existingMetadata =
+        user?.user_metadata && typeof user.user_metadata === 'object' ? user.user_metadata : {}
+
+      const { error: authError } = await supabase.auth.updateUser({
+        data: {
+          ...existingMetadata,
+          gender,
+        },
+      })
+
+      if (authError) {
+        console.error(authError)
+        throw authError
+      }
     }
 
     setProfile(prev => (prev ? { ...prev, ...data } : prev))

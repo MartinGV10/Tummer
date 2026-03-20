@@ -5,6 +5,8 @@ import { Avatar, Callout } from '@radix-ui/themes'
 import { IconInfoCircle, IconPhotoEdit, IconTrashX } from '@tabler/icons-react'
 import { supabase } from '@/lib/supabaseClient'
 
+const GENDER_OPTIONS = ['Female', 'Male', 'Non-binary', 'Prefer not to say'] as const
+
 const Settings = () => {
   const { profile, loading, updateProfile } = useProfile()
 
@@ -14,6 +16,7 @@ const Settings = () => {
   const [lastname, setLastname] = useState('')
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
+  const [gender, setGender] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -24,6 +27,7 @@ const Settings = () => {
       setFirstname(profile.first_name ?? '')
       setLastname(profile.last_name ?? '')
       setUsername(profile.username ?? '')
+      setGender(profile.gender ?? '')
     }
     
     const loadEmail = async () => {
@@ -63,6 +67,7 @@ const Settings = () => {
         first_name: firstname,
         last_name: lastname,
         username: username,
+        gender: gender || null,
       })
 
       const {
@@ -217,6 +222,20 @@ const deleteAvatar = async () => {
                       onChange={(e) => setEmail(e.target.value)}
                       
                     />
+                  </div>
+
+                  <div className="flex flex-col mb-5">
+                    <label className="mb-1 font-medium">Gender</label>
+                    <select
+                      className="shadow-md w-full bg-gray-50 border-2 rounded-lg p-2 border-green-600"
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value)}
+                    >
+                      <option value="">Select gender</option>
+                      {GENDER_OPTIONS.map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
