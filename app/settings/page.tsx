@@ -6,6 +6,8 @@ import { IconInfoCircle, IconPhotoEdit, IconTrashX } from '@tabler/icons-react'
 import { supabase } from '@/lib/supabaseClient'
 
 const GENDER_OPTIONS = ['Female', 'Male', 'Non-binary', 'Prefer not to say'] as const
+const INPUT_CLASS =
+  'w-full rounded-xl border border-green-200 bg-white px-3 py-2.5 text-sm text-gray-800 shadow-sm transition-all outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100'
 
 const Settings = () => {
   const { profile, loading, updateProfile } = useProfile()
@@ -94,7 +96,13 @@ const Settings = () => {
   }
 
   if (!profile && loading) {
-    return <div className="p-6">Loading...</div>
+    return (
+      <div className="min-h-screen bg-gray-100 px-4 py-10 md:px-6">
+        <div className="mx-auto max-w-6xl rounded-3xl border border-green-100 bg-white/80 p-8 shadow-sm">
+          <p className="text-sm text-gray-500">Loading your settings...</p>
+        </div>
+      </div>
+    )
   }
 
   if (!profile) {
@@ -163,71 +171,119 @@ const deleteAvatar = async () => {
 
 
   return (
-    <>
-      <div className="p-10 flex justify-center flex-col items-center space-y-5">
-        <div className="w-full max-w-6xl border-b-2 border-b-green-600 pb-2">
-          <h1 className="text-2xl font-medium">Settings</h1>
-          <p>Manage your account settings and preferences</p>
-        </div>
+    <div className="min-h-screen bg-gray-100 px-4 py-6 md:px-6 md:py-8">
+      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+        <section className="rounded-3xl border border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 p-6 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-green-700">Account</p>
+          <div className="mt-2 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h1 className="text-3xl font-medium tracking-tight text-gray-900">Settings</h1>
+              <p className="mt-1 text-sm text-gray-600">Manage your profile details, avatar, and account preferences.</p>
+            </div>
+            <div className="rounded-2xl border border-green-200 bg-white/80 px-4 py-3 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-gray-500">Signed in as</p>
+              <p className="text-sm font-medium text-gray-900">{email || profile.username}</p>
+            </div>
+          </div>
+        </section>
 
-        {/* Profile Section */}
-        <div className="flex flex-col w-full max-w-6xl pt-2">
-          <div className="flex justify-between gap-10">
-            {/* Left: Labels + Form */}
-            <div className="flex flex-col flex-1">
-              <h2 className="text-lg font-medium">Profile</h2>
-              <p className="mb-4">Set account details</p>
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
+          <aside className="lg:col-span-4">
+            <div className="rounded-3xl border border-green-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col items-center text-center">
+                <Avatar
+                  size="9"
+                  radius="full"
+                  src={profile.avatar_url ?? undefined}
+                  fallback={profile.first_name[0]}
+                  color="green"
+                  className="border-2 border-green-600 shadow-md"
+                />
+                <h2 className="mt-4 text-xl font-semibold text-gray-900">
+                  {profile.first_name} {profile.last_name}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">@{profile.username}</p>
+                <p className="mt-3 max-w-xs text-sm text-gray-600">
+                  Keep your account details up to date so the rest of the app can personalize your experience.
+                </p>
+              </div>
 
-              {/* FORM */}
-              <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-6">
+              <div className="mt-6 rounded-2xl border border-green-100 bg-green-50/60 p-4">
+                <p className="text-sm font-medium text-gray-900">Profile Photo</p>
+                <p className="mt-1 text-xs text-gray-600">Upload a new avatar or remove your current one.</p>
+                <div className="mt-4 flex items-center justify-center gap-3">
+                  <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={handleAvatarChange} />
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-xl border border-green-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:border-green-400 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    <IconPhotoEdit size={18} />
+                    <span className="ml-2">{uploading ? 'Uploading...' : 'Change'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 shadow-sm transition-all hover:border-red-400 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    onClick={deleteAvatar}
+                    disabled={uploading}
+                  >
+                    <IconTrashX size={18} />
+                    <span className="ml-2">Remove</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          <section className="lg:col-span-8">
+            <div className="rounded-3xl border border-green-200 bg-white p-6 shadow-sm md:p-7">
+              <div className="flex flex-col gap-2 border-b border-green-100 pb-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <div className="flex flex-col mb-5">
-                    <label className="mb-1 font-medium">First Name</label>
+                  <h2 className="text-xl font-semibold text-gray-900">Profile Details</h2>
+                  <p className="text-sm text-gray-600">Update the information tied to your account.</p>
+                </div>
+                <div className="rounded-xl bg-green-50 px-3 py-2 text-xs text-green-800">
+                  Changes to your email may require confirmation.
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-gray-800">First Name</label>
                     <input
                       type="text"
-                      className="shadow-md w-full bg-gray-50 border-2 rounded-lg p-2 border-green-600"
+                      className={INPUT_CLASS}
                       value={firstname}
                       onChange={(e) => setFirstname(e.target.value)}
                     />
                   </div>
 
-                  <div className="flex flex-col mb-5">
-                    <label className="mb-1 font-medium">Last Name</label>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-gray-800">Last Name</label>
                     <input
                       type="text"
-                      className="shadow-lg w-full bg-gray-50 border-2 rounded-lg p-2 border-green-600"
+                      className={INPUT_CLASS}
                       value={lastname}
                       onChange={(e) => setLastname(e.target.value)}
                     />
                   </div>
-                </div>
 
-                <div>
-                  <div className="flex flex-col mb-5">
-                    <label className="mb-1 font-medium">Username</label>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-gray-800">Username</label>
                     <input
                       type="text"
-                      className="shadow-lg w-full bg-gray-50 border-2 rounded-lg p-2 border-green-600"
+                      className={INPUT_CLASS}
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                     />
                   </div>
 
-                  <div className="flex flex-col mb-5">
-                    <label className="mb-1 font-medium">Email</label>
-                    <input
-                      type="text"
-                      className="shadow-md w-full bg-gray-50 border-2 rounded-lg p-2 border-green-600"
-                      value={email} // if you have email in profile, otherwise leave blank or remove
-                      onChange={(e) => setEmail(e.target.value)}
-                      
-                    />
-                  </div>
-
-                  <div className="flex flex-col mb-5">
-                    <label className="mb-1 font-medium">Gender</label>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-gray-800">Gender</label>
                     <select
-                      className="shadow-md w-full bg-gray-50 border-2 rounded-lg p-2 border-green-600"
+                      className={INPUT_CLASS}
                       value={gender}
                       onChange={(e) => setGender(e.target.value)}
                     >
@@ -237,59 +293,45 @@ const deleteAvatar = async () => {
                       ))}
                     </select>
                   </div>
+
+                  <div className="space-y-1.5 md:col-span-2">
+                    <label className="text-sm font-medium text-gray-800">Email</label>
+                    <input
+                      type="email"
+                      className={INPUT_CLASS}
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
                 </div>
 
-                {/* You can add condition here later */}
+                {message && (
+                  <Callout.Root color={message.includes('wrong') || message.includes('Error') ? 'red' : 'green'}>
+                    <Callout.Icon>
+                      <IconInfoCircle />
+                    </Callout.Icon>
+                    <Callout.Text>{message}</Callout.Text>
+                  </Callout.Root>
+                )}
 
-                <div className="col-span-2 flex items-center gap-4 mt-2">
+                <div className="flex flex-col gap-3 border-t border-green-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-gray-600">
+                    Your profile changes help personalize tracking, trends, and recommendations across the app.
+                  </p>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="font-medium shadow-lg transition-all cursor-pointer bg-green-600 hover:bg-green-700 text-white rounded-lg px-4 py-2 disabled:opacity-50"
+                    className="inline-flex items-center justify-center rounded-xl bg-green-600 px-5 py-2.5 text-sm font-medium text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-green-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {saving ? 'Saving...' : 'Save Changes'}
                   </button>
-
-                  {message && (
-                    <Callout.Root>
-                      <Callout.Icon>
-                        <IconInfoCircle />
-                      </Callout.Icon>
-                      <Callout.Text>
-                        {message}
-                      </Callout.Text>
-                    </Callout.Root>
-                  )}
-
                 </div>
               </form>
             </div>
-
-            {/* Right: Avatar section */}
-            <div className="flex flex-col items-center justify-center p-2 space-y-3">
-              <Avatar
-                size="9"
-                radius="full"
-                src={profile.avatar_url ?? undefined}
-                fallback={profile.first_name[0]}
-                color="green"
-                className='border-2 border-green-600 shadow-md'
-              />
-              <div className="flex items-center justify-center gap-5">
-                <input type="file" accept='image/*' ref={fileInputRef} className='hidden' onChange={handleAvatarChange}/>
-                  <button className="p-2 rounded-lg hover:bg-gray-200 transition-all cursor-pointer border-2 border-green-600 shadow-md" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-                  <IconPhotoEdit />
-                </button>
-                <button className="p-2 rounded-lg hover:bg-gray-200 transition-all cursor-pointer border-2 border-green-600 shadow-md" onClick={deleteAvatar} disabled={uploading}>
-                  <IconTrashX />
-                </button>
-              </div>
-            </div>
-          </div>
+          </section>
         </div>
-
       </div>
-    </>
+    </div>
   )
 }
 
