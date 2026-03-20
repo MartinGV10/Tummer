@@ -19,16 +19,25 @@ type DailyLogRow = {
   hydration_level: number | null
   flare_day: boolean | null
   period_day: boolean | null
+  notes: string | null
 }
 
 type SimpleBowel = {
   id: string
   daily_log_id: string
+  bristol_type: number | null
+  urgency_level: number | null
+  blood_present: boolean | null
+  mucus_present: boolean | null
+  notes: string | null
 }
 
 type SimpleSymptom = {
   id: string
   daily_log_id: string
+  symptom_name: string
+  severity: number | null
+  notes: string | null
 }
 
 type DashboardAiData = {
@@ -175,7 +184,7 @@ export default function DashboardPage() {
 
       const dailyLogsPromise = supabase
         .from('daily_logs')
-        .select('id, log_date, overall_feeling, stress_level, energy_level, sleep_hours, hydration_level, flare_day, period_day')
+        .select('id, log_date, overall_feeling, stress_level, energy_level, sleep_hours, hydration_level, flare_day, period_day, notes')
         .eq('user_id', user.id)
         .gte('log_date', rangeStart)
         .lte('log_date', todayKey)
@@ -218,8 +227,14 @@ export default function DashboardPage() {
         setWeeklySymptoms([])
       } else {
         const [bowelRes, symptomRes] = await Promise.all([
-          supabase.from('bowel_entries').select('id, daily_log_id').in('daily_log_id', ids),
-          supabase.from('symptom_entries').select('id, daily_log_id').in('daily_log_id', ids),
+          supabase
+            .from('bowel_entries')
+            .select('id, daily_log_id, bristol_type, urgency_level, blood_present, mucus_present, notes')
+            .in('daily_log_id', ids),
+          supabase
+            .from('symptom_entries')
+            .select('id, daily_log_id, symptom_name, severity, notes')
+            .in('daily_log_id', ids),
         ])
 
         if (!active) return
@@ -367,7 +382,37 @@ export default function DashboardPage() {
       daysSinceSymptom,
       weeklyMeals: last7Days.map((d) => ({ date: d.key, value: mealsByDay[d.key] ?? 0 })),
       weeklyBowels: last7Days.map((d) => ({ date: d.key, value: bowelsByDay[d.key] ?? 0 })),
+      weeklyBowelDetails: last7Days.map((d) => {
+        const entries = weeklyBowels
+          .filter((entry) => logIdToDate[entry.daily_log_id] === d.key)
+          .map((entry) => ({
+            bristol_type: entry.bristol_type,
+            urgency_level: entry.urgency_level,
+            blood_present: entry.blood_present,
+            mucus_present: entry.mucus_present,
+            notes: entry.notes,
+          }))
+
+        return {
+          date: d.key,
+          entries,
+        }
+      }),
       weeklySymptoms: last7Days.map((d) => ({ date: d.key, value: symptomsByDay[d.key] ?? 0 })),
+      weeklySymptomDetails: last7Days.map((d) => {
+        const entries = weeklySymptoms
+          .filter((entry) => logIdToDate[entry.daily_log_id] === d.key)
+          .map((entry) => ({
+            symptom_name: entry.symptom_name,
+            severity: entry.severity,
+            notes: entry.notes,
+          }))
+
+        return {
+          date: d.key,
+          entries,
+        }
+      }),
       weeklyFactors: last7Days.map((d) => {
         const row = weeklyDailyLogs.find((log) => log.log_date === d.key)
         return {
@@ -381,6 +426,13 @@ export default function DashboardPage() {
           period_day: showPeriodDay ? (row?.period_day ?? null) : null,
         }
       }),
+      weeklyDailyNotes: last7Days.map((d) => {
+        const row = weeklyDailyLogs.find((log) => log.log_date === d.key)
+        return {
+          date: d.key,
+          notes: row?.notes ?? null,
+        }
+      }),
       triggerFoods,
       weeklyTriggerMeals,
       profileContext: {
@@ -388,7 +440,7 @@ export default function DashboardPage() {
         dietaryRestriction: profileRestriction,
       },
     }),
-    [todayKey, mealsToday, bowelsToday, symptomsToday, daysSinceSymptom, last7Days, mealsByDay, bowelsByDay, symptomsByDay, weeklyDailyLogs, triggerFoods, weeklyTriggerMeals, profileCondition, profileRestriction, showPeriodDay]
+    [todayKey, mealsToday, bowelsToday, symptomsToday, daysSinceSymptom, last7Days, mealsByDay, bowelsByDay, symptomsByDay, weeklyDailyLogs, weeklyBowels, weeklySymptoms, logIdToDate, triggerFoods, weeklyTriggerMeals, profileCondition, profileRestriction, showPeriodDay]
   )
 
   const hasAiInputs = useMemo(

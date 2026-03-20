@@ -10,7 +10,25 @@ export type DashboardAiPayload = {
   daysSinceSymptom: number | null
   weeklyMeals: Array<{ date: string; value: number }>
   weeklyBowels: Array<{ date: string; value: number }>
+  weeklyBowelDetails?: Array<{
+    date: string
+    entries: Array<{
+      bristol_type: number | null
+      urgency_level: number | null
+      blood_present: boolean | null
+      mucus_present: boolean | null
+      notes: string | null
+    }>
+  }>
   weeklySymptoms: Array<{ date: string; value: number }>
+  weeklySymptomDetails?: Array<{
+    date: string
+    entries: Array<{
+      symptom_name: string
+      severity: number | null
+      notes: string | null
+    }>
+  }>
   weeklyFactors?: Array<{
     date: string
     stress_level: number | null
@@ -20,6 +38,10 @@ export type DashboardAiPayload = {
     overall_feeling: number | null
     flare_day: boolean | null
     period_day: boolean | null
+  }>
+  weeklyDailyNotes?: Array<{
+    date: string
+    notes: string | null
   }>
   triggerFoods?: string[]
   weeklyTriggerMeals?: Array<{
@@ -217,8 +239,18 @@ function daysBetweenDateKeys(fromDate: string, toDate: string): number {
   return Math.floor(diff / (1000 * 60 * 60 * 24))
 }
 
+function truncateTextList(values: Array<string | null | undefined>, limit = 4, maxLen = 120): string[] {
+  return values
+    .map((value) => sanitizeOutput(value, maxLen))
+    .filter(Boolean)
+    .slice(0, limit)
+}
+
 function buildAnalytics(payload: DashboardAiPayload) {
   const factors = payload.weeklyFactors ?? []
+  const bowelDetails = payload.weeklyBowelDetails ?? []
+  const symptomDetails = payload.weeklySymptomDetails ?? []
+  const dailyNotes = payload.weeklyDailyNotes ?? []
   const triggerFoods = payload.triggerFoods ?? []
   const weeklyTriggerMeals = payload.weeklyTriggerMeals ?? []
   const profileContext = payload.profileContext ?? {}
@@ -246,6 +278,18 @@ function buildAnalytics(payload: DashboardAiPayload) {
 
   const flareDays = factors.filter((f) => f.flare_day === true).length
   const periodDays = factors.filter((f) => f.period_day === true).length
+
+  const bowelEntries = bowelDetails.flatMap((day) => day.entries)
+  const symptomEntries = symptomDetails.flatMap((day) => day.entries)
+  const avgBristolType = avg(bowelEntries.map((entry) => entry.bristol_type))
+  const avgBowelUrgency = avg(bowelEntries.map((entry) => entry.urgency_level))
+  const bloodPresentCount = bowelEntries.filter((entry) => entry.blood_present === true).length
+  const mucusPresentCount = bowelEntries.filter((entry) => entry.mucus_present === true).length
+  const looseStoolCount = bowelEntries.filter((entry) => typeof entry.bristol_type === 'number' && entry.bristol_type >= 6).length
+  const hardStoolCount = bowelEntries.filter((entry) => typeof entry.bristol_type === 'number' && entry.bristol_type <= 2).length
+  const bowelNotes = truncateTextList(bowelEntries.map((entry) => entry.notes))
+  const symptomNotes = truncateTextList(symptomEntries.map((entry) => entry.notes))
+  const dailyLogNotes = truncateTextList(dailyNotes.map((entry) => entry.notes))
 
   const stressVsSymptoms = correlationHint(
     factors.map((f) => f.stress_level),
@@ -414,6 +458,17 @@ function buildAnalytics(payload: DashboardAiPayload) {
       avgHydrationOnSymptomDays,
       avgHydrationOnQuietDays,
     },
+    bowelDetails: {
+      avgBristolType,
+      avgBowelUrgency,
+      bloodPresentCount,
+      mucusPresentCount,
+      looseStoolCount,
+      hardStoolCount,
+      bowelNotes,
+      symptomNotes,
+      dailyLogNotes,
+    },
     triggerFoods,
     profileContext,
     triggerMeals: {
@@ -432,8 +487,11 @@ function buildAnalytics(payload: DashboardAiPayload) {
     raw: {
       weeklyMeals: payload.weeklyMeals,
       weeklyBowels: payload.weeklyBowels,
+      weeklyBowelDetails: payload.weeklyBowelDetails ?? [],
       weeklySymptoms: payload.weeklySymptoms,
+      weeklySymptomDetails: payload.weeklySymptomDetails ?? [],
       weeklyFactors: payload.weeklyFactors ?? [],
+      weeklyDailyNotes: payload.weeklyDailyNotes ?? [],
       triggerFoods,
       weeklyTriggerMeals,
       profileContext,
@@ -450,6 +508,22 @@ function buildFallbackDrivers(analytics: ReturnType<typeof buildAnalytics>): str
 
   if (analytics.weekly.bowelTrend === 'up') {
     drivers.push('bowel activity is trending upward')
+  }
+
+  if (analytics.bowelDetails.bloodPresentCount > 0) {
+    drivers.push('blood was logged in recent bowel entries')
+  }
+
+  if (analytics.bowelDetails.mucusPresentCount > 0) {
+    drivers.push('mucus was logged in recent bowel entries')
+  }
+
+  if (analytics.bowelDetails.looseStoolCount >= 2) {
+    drivers.push('looser Bristol stool patterns are showing up repeatedly')
+  }
+
+  if (analytics.bowelDetails.hardStoolCount >= 2) {
+    drivers.push('harder Bristol stool patterns are showing up repeatedly')
   }
 
   if (
@@ -535,6 +609,10 @@ function fallbackInsight(payload: DashboardAiPayload): DashboardAiResult {
     alert = `Today looks more active than usual. Compare today's symptoms with bowel activity, sleep, and stress to see whether this matches your other higher-symptom days.`
   } else if (analytics.weekly.symptomTrend === 'up') {
     alert = `Symptoms are rising this week. Watch whether the next 2 to 3 days follow the same pattern, especially around sleep, stress, and bowel activity.`
+  } else if (analytics.bowelDetails.bloodPresentCount > 0) {
+    alert = `Blood was logged in recent bowel entries. Review timing, stool pattern, and associated notes, and follow your clinician's guidance if this is new or worsening.`
+  } else if (analytics.bowelDetails.mucusPresentCount > 0) {
+    alert = `Mucus was logged in recent bowel entries. Watch whether it clusters with symptoms, urgency, Bristol changes, or specific meals over the next few days.`
   } else if (
     analytics.factors.avgSleepOnSymptomDays !== null &&
     analytics.factors.avgSleepOnQuietDays !== null &&
@@ -642,6 +720,7 @@ function buildSystemPrompt(): string {
     '2. Prioritize worsening or clustered trends over simple summaries.',
     '3. Highlight likely contributors such as sleep, stress, hydration, energy, flare days, period days, bowel changes, and shifts in meal volume.',
     '4. Give practical, evidence-based guidance on what to watch next.',
+    '5. Use bowel details like Bristol type, mucus, blood presence, urgency, and note text when they provide meaningful signal.',
     '',
     'Rules:',
     '- Be specific and data-grounded.',
@@ -659,6 +738,7 @@ function buildSystemPrompt(): string {
     'If trigger-food exposures are present, mention them directly by food name and timing when relevant.',
     'When a likely trigger-food exposure appears close to symptom activity, provide a concrete next-step suggestion (for example, reduce or avoid temporarily and monitor 48 to 72 hour response).',
     'If condition or dietary restriction context is provided, incorporate it directly into interpretation and recommendations.',
+    'If bowel details or notes show blood, mucus, Bristol pattern shifts, urgency changes, or useful context, factor them into the output explicitly.',
   ].join('\n')
 }
 
@@ -679,6 +759,7 @@ function buildUserPrompt(): string {
     '- explain why it matters now',
     '- tell the user what to watch next',
     '- keep the insight concise (max 460 chars) and alert concise (max 260 chars)',
+    '- use bowel-entry details like Bristol type, blood, mucus, urgency, and note text when they strengthen the conclusion',
     '',
     'Avoid generic lines like "keep tracking patterns" unless the data is too weak for a stronger conclusion.',
     'Use the derived analytics first. Use the raw daily arrays only to confirm the pattern.',
@@ -721,6 +802,7 @@ export async function generateDashboardInsights(
                 today: analytics.today,
                 weekly: analytics.weekly,
                 factors: analytics.factors,
+                bowelDetails: analytics.bowelDetails,
                 profileContext: analytics.profileContext,
                 triggerFoods: analytics.triggerFoods,
                 triggerMeals: analytics.triggerMeals,
