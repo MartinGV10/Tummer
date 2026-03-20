@@ -383,7 +383,8 @@ const Support = () => {
     [conditionName, dietaryRestriction, profile?.reason]
   )
 
-  const displayCondition = conditionName ?? resolvedGuide.label
+  const displayCondition = loadingGuide ? '' : conditionName ?? resolvedGuide.label
+  const activeGuide = loadingGuide ? null : resolvedGuide
 
   return (
     <div className="p-4 md:p-6 mt-3 md:mt-5 flex flex-col items-center">
@@ -393,7 +394,8 @@ const Support = () => {
           <p className="text-sm text-gray-600 mt-1">Condition education, food guidance, and safer day-to-day options.</p>
         </div>
         <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
-          <span className="font-medium">Current focus:</span> {displayCondition}
+          <span className="font-medium">Current focus:</span>{' '}
+          {loadingGuide ? <span className="inline-block h-4 w-36 animate-pulse rounded bg-green-200/80 align-middle" /> : displayCondition}
         </div>
       </div>
 
@@ -405,13 +407,24 @@ const Support = () => {
       </div>
 
       <div className="w-full max-w-6xl mb-5 rounded-2xl border border-green-300 bg-linear-to-r from-green-50 via-white to-emerald-50 p-5 shadow-sm">
-        <h2 className="text-xl font-semibold text-gray-900">{displayCondition}</h2>
-        <p className="mt-2 text-sm text-gray-700">{resolvedGuide.summary}</p>
-        <p className="mt-2 text-sm text-gray-700">
-          <span className="font-medium text-gray-900">What causes it: </span>
-          {resolvedGuide.causes}
-        </p>
-        {dietaryRestriction && (
+        {loadingGuide ? (
+          <div className="space-y-3">
+            <div className="h-7 w-56 animate-pulse rounded bg-green-200/80" />
+            <div className="h-4 w-full animate-pulse rounded bg-green-100" />
+            <div className="h-4 w-11/12 animate-pulse rounded bg-green-100" />
+            <div className="h-4 w-10/12 animate-pulse rounded bg-green-100" />
+          </div>
+        ) : (
+          <>
+            <h2 className="text-xl font-semibold text-gray-900">{displayCondition}</h2>
+            <p className="mt-2 text-sm text-gray-700">{activeGuide?.summary}</p>
+            <p className="mt-2 text-sm text-gray-700">
+              <span className="font-medium text-gray-900">What causes it: </span>
+              {activeGuide?.causes}
+            </p>
+          </>
+        )}
+        {!loadingGuide && dietaryRestriction && (
           <p className="mt-2 text-xs text-gray-600">
             Your profile dietary note: <span className="font-medium">{dietaryRestriction}</span>
           </p>
@@ -420,43 +433,79 @@ const Support = () => {
 
       <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 mb-5">
         <section className="md:col-span-2 lg:col-span-7 bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
-          <h3 className="text-lg font-semibold border-b border-green-200 pb-3">{resolvedGuide.approachTitle}</h3>
-          <ul className="mt-3 list-disc pl-5 text-sm text-gray-700 space-y-2">
-            {resolvedGuide.dietApproach.map((item) => (
-              <li key={`approach-${item}`}>{item}</li>
-            ))}
-          </ul>
+          <h3 className="text-lg font-semibold border-b border-green-200 pb-3">{loadingGuide ? ' ' : activeGuide?.approachTitle}</h3>
+          {loadingGuide ? (
+            <div className="mt-3 space-y-2">
+              <div className="h-4 w-full animate-pulse rounded bg-green-100" />
+              <div className="h-4 w-11/12 animate-pulse rounded bg-green-100" />
+              <div className="h-4 w-10/12 animate-pulse rounded bg-green-100" />
+            </div>
+          ) : (
+            <ul className="mt-3 list-disc pl-5 text-sm text-gray-700 space-y-2">
+              {activeGuide?.dietApproach.map((item) => (
+                <li key={`approach-${item}`}>{item}</li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section className="md:col-span-2 lg:col-span-5 bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
           <h3 className="text-lg font-semibold border-b border-green-200 pb-3">Supplements to Discuss</h3>
-          <ul className="mt-3 list-disc pl-5 text-sm text-gray-700 space-y-2">
-            {resolvedGuide.supplementsToDiscuss.map((item) => (
-              <li key={`supplement-${item}`}>{item}</li>
-            ))}
-          </ul>
+          {loadingGuide ? (
+            <div className="mt-3 space-y-2">
+              <div className="h-4 w-full animate-pulse rounded bg-green-100" />
+              <div className="h-4 w-11/12 animate-pulse rounded bg-green-100" />
+              <div className="h-4 w-9/12 animate-pulse rounded bg-green-100" />
+            </div>
+          ) : (
+            <ul className="mt-3 list-disc pl-5 text-sm text-gray-700 space-y-2">
+              {activeGuide?.supplementsToDiscuss.map((item) => (
+                <li key={`supplement-${item}`}>{item}</li>
+              ))}
+            </ul>
+          )}
         </section>
       </div>
 
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
         <section className="bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
           <h3 className="text-lg font-semibold border-b border-green-200 pb-3">Sample Meals</h3>
-          <p className="text-xs text-gray-600 mt-2">Examples only. Personal tolerance varies.</p>
-          <ul className="mt-3 list-disc pl-5 text-sm text-gray-700 space-y-2">
-            {resolvedGuide.sampleMeals.map((meal) => (
-              <li key={`meal-${meal}`}>{meal}</li>
-            ))}
-          </ul>
+          {loadingGuide ? (
+            <div className="mt-4 space-y-2">
+              <div className="h-4 w-full animate-pulse rounded bg-green-100" />
+              <div className="h-4 w-10/12 animate-pulse rounded bg-green-100" />
+              <div className="h-4 w-9/12 animate-pulse rounded bg-green-100" />
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-gray-600 mt-2">Examples only. Personal tolerance varies.</p>
+              <ul className="mt-3 list-disc pl-5 text-sm text-gray-700 space-y-2">
+                {activeGuide?.sampleMeals.map((meal) => (
+                  <li key={`meal-${meal}`}>{meal}</li>
+                ))}
+              </ul>
+            </>
+          )}
         </section>
 
         <section className="bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
           <h3 className="text-lg font-semibold border-b border-green-200 pb-3">Smart Substitutions</h3>
-          <p className="text-xs text-gray-600 mt-2">Use these swaps when a food pattern triggers symptoms.</p>
-          <ul className="mt-3 list-disc pl-5 text-sm text-gray-700 space-y-2">
-            {resolvedGuide.substitutions.map((swap) => (
-              <li key={`swap-${swap}`}>{swap}</li>
-            ))}
-          </ul>
+          {loadingGuide ? (
+            <div className="mt-4 space-y-2">
+              <div className="h-4 w-full animate-pulse rounded bg-green-100" />
+              <div className="h-4 w-11/12 animate-pulse rounded bg-green-100" />
+              <div className="h-4 w-8/12 animate-pulse rounded bg-green-100" />
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-gray-600 mt-2">Use these swaps when a food pattern triggers symptoms.</p>
+              <ul className="mt-3 list-disc pl-5 text-sm text-gray-700 space-y-2">
+                {activeGuide?.substitutions.map((swap) => (
+                  <li key={`swap-${swap}`}>{swap}</li>
+                ))}
+              </ul>
+            </>
+          )}
         </section>
       </div>
 

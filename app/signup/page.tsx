@@ -3,13 +3,12 @@ import React, { useEffect, useState, useTransition } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { IconArrowNarrowLeft, IconLeaf } from '@tabler/icons-react'
 import { useRouter } from 'next/navigation'
+import { GENDER_OPTIONS, normalizeGenderValue } from '@/src/shared/profileGender'
 
 type Condition = {
   id: string
   name: string
 }
-
-const GENDER_OPTIONS = ['Female', 'Male', 'Non-binary', 'Prefer not to say'] as const
 
 const Signup = () => {
   const [email, setEmail] = useState('')
@@ -69,13 +68,7 @@ const Signup = () => {
         data: signUpData,
         error: signUpError
       } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            gender,
-          },
-        },
+        email, password
       })
 
       if (signUpError) {
@@ -95,6 +88,7 @@ const Signup = () => {
         first_name: firstname,
         last_name: lastname,
         username,
+        gender: normalizeGenderValue(gender),
         condition_id: conditionId || null,
         reason: reason || null
       })
@@ -141,7 +135,7 @@ const Signup = () => {
             <select value={gender} onChange={e => setGender(e.target.value)} className='shadow-lg w-full bg-gray-50 border-2 rounded-lg p-2 font-medium border-green-600'>
               <option value="">Select Gender</option>
               {GENDER_OPTIONS.map((option) => (
-                <option key={option} value={option}>{option}</option>
+                <option key={option.value} value={option.value}>{option.label}</option>
               ))}
             </select>
             <select value={conditionId} onChange={e => setConditionId(e.target.value)} className='shadow-lg w-full bg-gray-50 border-2 rounded-lg p-2 font-medium border-green-600'>

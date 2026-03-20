@@ -5,6 +5,7 @@ import { Calendar } from '../components/ui/calendar'
 import React, { useEffect, useMemo, useState } from 'react'
 import { RadioGroup, Separator } from '@radix-ui/themes'
 import { IconMoodAnnoyed, IconMoodEmpty, IconMoodHappy, IconMoodSad, IconMoodSmile } from '@tabler/icons-react'
+import { normalizeGenderValue } from '@/src/shared/profileGender'
 
 function toLocalDateKey(d: Date): string {
   const year = d.getFullYear()
@@ -70,7 +71,7 @@ const LogHealth = () => {
 
   const showPeriodDay = useMemo(() => {
     if (!profile) return false
-    return (profile.gender ?? '').trim().toLowerCase() !== 'male'
+    return normalizeGenderValue(profile.gender) !== 'male'
   }, [profile])
 
   const onPickDate = (d: Date | undefined) => {

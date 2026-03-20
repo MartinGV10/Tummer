@@ -1,8 +1,8 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
+import { normalizeGenderValue } from '@/src/shared/profileGender'
 
 export type Profile = {
   id: string
@@ -26,7 +26,6 @@ type ProfileContextType = {
 const ProfileContext = createContext<ProfileContextType | null>(null)
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -52,7 +51,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, username, reason, avatar_url')
+        .select('id, first_name, last_name, username, gender, reason, avatar_url')
         .eq('id', session.user.id)
         .maybeSingle()
 
@@ -72,10 +71,8 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       }
 
       setProfile({
-        ...(data as Omit<Profile, 'gender'>),
-        gender: typeof session.user.user_metadata?.gender === 'string'
-          ? session.user.user_metadata.gender
-          : null,
+        ...(data as Profile),
+        gender: normalizeGenderValue((data as Profile).gender),
       })
       setError(null)
     } catch (err) {
@@ -116,39 +113,23 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
-    const { gender, ...profileData } = data
-
-    if (Object.keys(profileData).length > 0) {
-      const { error } = await supabase.from('profiles').update(profileData).eq('id', profile.id)
-
-      if (error) {
-        console.error(error)
-        throw error
-      }
+    const nextValues = {
+      ...data,
+      gender: data.gender === undefined ? undefined : normalizeGenderValue(data.gender),
     }
 
-    if (gender !== undefined) {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+    const payload = Object.fromEntries(
+      Object.entries(nextValues).filter(([, value]) => value !== undefined)
+    ) as Partial<Profile>
 
-      const existingMetadata =
-        user?.user_metadata && typeof user.user_metadata === 'object' ? user.user_metadata : {}
+    const { error } = await supabase.from('profiles').update(payload).eq('id', profile.id)
 
-      const { error: authError } = await supabase.auth.updateUser({
-        data: {
-          ...existingMetadata,
-          gender,
-        },
-      })
-
-      if (authError) {
-        console.error(authError)
-        throw authError
-      }
+    if (error) {
+      console.error(error)
+      throw error
     }
 
-    setProfile(prev => (prev ? { ...prev, ...data } : prev))
+    setProfile((prev) => (prev ? { ...prev, ...payload } : prev))
   }
 
   return (

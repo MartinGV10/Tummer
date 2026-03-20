@@ -4,8 +4,7 @@ import { useProfile } from '@/src/context/ProfileContext'
 import { Avatar, Callout } from '@radix-ui/themes'
 import { IconInfoCircle, IconPhotoEdit, IconTrashX } from '@tabler/icons-react'
 import { supabase } from '@/lib/supabaseClient'
-
-const GENDER_OPTIONS = ['Female', 'Male', 'Non-binary', 'Prefer not to say'] as const
+import { GENDER_OPTIONS, normalizeGenderValue } from '@/src/shared/profileGender'
 const INPUT_CLASS =
   'w-full rounded-xl border border-green-200 bg-white px-3 py-2.5 text-sm text-gray-800 shadow-sm transition-all outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100'
 
@@ -29,7 +28,7 @@ const Settings = () => {
       setFirstname(profile.first_name ?? '')
       setLastname(profile.last_name ?? '')
       setUsername(profile.username ?? '')
-      setGender(profile.gender ?? '')
+      setGender(normalizeGenderValue(profile.gender) ?? '')
     }
     
     const loadEmail = async () => {
@@ -69,7 +68,7 @@ const Settings = () => {
         first_name: firstname,
         last_name: lastname,
         username: username,
-        gender: gender || null,
+        gender: normalizeGenderValue(gender),
       })
 
       const {
@@ -289,7 +288,7 @@ const deleteAvatar = async () => {
                     >
                       <option value="">Select gender</option>
                       {GENDER_OPTIONS.map((option) => (
-                        <option key={option} value={option}>{option}</option>
+                        <option key={option.value} value={option.value}>{option.label}</option>
                       ))}
                     </select>
                   </div>

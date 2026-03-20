@@ -7,6 +7,7 @@ import { useProfile } from '@/src/context/ProfileContext'
 import useMeals from '@/src/context/TrackedMealsContext'
 import { supabase } from '@/lib/supabaseClient'
 import { DASHBOARD_AI_EMPTY_STATE, hasDashboardInsightInputs } from '@/src/shared/dashboardAi'
+import { normalizeGenderValue } from '@/src/shared/profileGender'
 
 type DailyLogRow = {
   id: string
@@ -143,7 +144,7 @@ export default function DashboardPage() {
   const rangeStart = last7Days[0]?.key ?? todayKey
   const showPeriodDay = useMemo(() => {
     if (!profile) return false
-    return (profile.gender ?? '').trim().toLowerCase() !== 'male'
+    return normalizeGenderValue(profile.gender) !== 'male'
   }, [profile])
 
   useEffect(() => {
