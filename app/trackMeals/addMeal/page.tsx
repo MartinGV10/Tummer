@@ -35,11 +35,22 @@ const MEAL_TYPE_OPTIONS = [
 const INPUT_CLASS =
   'w-full rounded-xl border border-green-300 bg-white px-3 py-2.5 text-sm shadow-sm transition-all placeholder:text-gray-400 focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100'
 
+function formatHistoryMealTime(value: string): string {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return 'Unknown time'
+  return parsed.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
 const AddMealPage = () => {
   const [name, setName] = useState('')
   const [type, setType] = useState('breakfast')
   const [eatenAt, setEatenAt] = useState('')
   const [notes, setNotes] = useState('')
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
 
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -50,6 +61,22 @@ const AddMealPage = () => {
   const { addMeal, error: addMealError, updateMeal, meals } = useMeals()
   const mealId = searchParams.get('mealId')
   const editingMeal = mealId ? meals.find((m) => m.id === mealId) : undefined
+
+  const mealHistory = React.useMemo(() => {
+    const seen = new Set<string>()
+
+    return meals.filter((meal) => {
+      const key = JSON.stringify({
+        meal_name: meal.meal_name.trim().toLowerCase(),
+        meal_type: meal.meal_type,
+        notes: meal.notes?.trim().toLowerCase() ?? '',
+      })
+
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+  }, [meals])
 
   useEffect(() => {
     if (!editingMeal) return
@@ -73,10 +100,21 @@ const AddMealPage = () => {
         setEatenAt('')
       }
       setNotes(editingMeal.notes ?? '')
+      setSelectedTemplateId('')
     }, 0)
 
     return () => clearTimeout(timer)
   }, [editingMeal])
+
+  const applyMealTemplate = (templateId: string) => {
+    setSelectedTemplateId(templateId)
+    const selectedMeal = mealHistory.find((meal) => meal.id === templateId)
+    if (!selectedMeal) return
+
+    setName(selectedMeal.meal_name ?? '')
+    setType(selectedMeal.meal_type ?? 'breakfast')
+    setNotes(selectedMeal.notes ?? '')
+  }
 
   const handleAdding = (e: React.FormEvent) => {
     e.preventDefault()
@@ -134,6 +172,7 @@ const AddMealPage = () => {
       setType('')
       setEatenAt('')
       setNotes('')
+      setSelectedTemplateId('')
 
       setMessage('Meal added successfully')
       router.push('/trackMeals')
@@ -166,6 +205,47 @@ const AddMealPage = () => {
               <h2 className="text-lg font-semibold text-gray-900">Meal Details</h2>
               <p className="text-xs text-gray-500">Fields marked * are required</p>
             </div>
+
+            {!editingMeal && mealHistory.length > 0 && (
+              <div className="rounded-2xl border border-green-200 bg-green-50/60 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-900">Use a previously logged meal</h3>
+                    <p className="mt-1 text-xs text-gray-600">Select one to prefill the meal name, type, and notes.</p>
+                  </div>
+                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-green-800 shadow-sm">
+                    {mealHistory.length} saved
+                  </span>
+                </div>
+
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                  <select
+                    className={INPUT_CLASS}
+                    value={selectedTemplateId}
+                    onChange={(e) => applyMealTemplate(e.target.value)}
+                  >
+                    <option value="">Choose a previous meal</option>
+                    {mealHistory.map((meal) => (
+                      <option key={meal.id} value={meal.id}>
+                        {meal.meal_name} • {meal.meal_type} • {formatHistoryMealTime(meal.eaten_at)}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedTemplateId('')
+                      setName('')
+                      setType('breakfast')
+                      setNotes('')
+                    }}
+                    className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <label htmlFor="meal-name" className="text-sm font-medium text-gray-800">

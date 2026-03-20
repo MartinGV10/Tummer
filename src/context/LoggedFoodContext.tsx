@@ -81,8 +81,18 @@ export function FoodProvider({ children }: { children: React.ReactNode }) {
     // initial load
     loadFood()
 
-    const { data } = supabase.auth.onAuthStateChange((_event, _session) => {
-      loadFood()
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        setFood([])
+        setIsAuthenticated(false)
+        setError(null)
+        setLoading(false)
+        return
+      }
+
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+        void loadFood()
+      }
     })
 
     return () => {

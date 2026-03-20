@@ -1,5 +1,5 @@
 'use client'
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
 export type Meal = {
@@ -40,6 +40,7 @@ export function MealProvider({ children }: { children: React.ReactNode }) {
 	const [error, setError] = useState<string | null>(null)
 	const [isAuthenticated, setIsAuthenticated] = useState(false) 
 	const [userId, setUserId] = useState<string | null>(null)
+	const currentUserIdRef = useRef<string | null>(null)
 
 	const loadInitialData = useCallback(async () => {
 		setLoading(true)
@@ -53,12 +54,14 @@ export function MealProvider({ children }: { children: React.ReactNode }) {
 			if (!session) {
 				setIsAuthenticated(false)
 				setUserId(null)
+				currentUserIdRef.current = null
 				setMeals([])
 				return
 			}
 
 			setIsAuthenticated(true)
 			setUserId(session.user.id)
+			currentUserIdRef.current = session.user.id
 
 			const { data, error } = await supabase
 				.from('meals')
@@ -87,17 +90,21 @@ export function MealProvider({ children }: { children: React.ReactNode }) {
 	useEffect(() => {
 		loadInitialData()
 
-		const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+		const { data } = supabase.auth.onAuthStateChange((event, session) => {
 			if (!session) {
+				if (currentUserIdRef.current === null) return
 				setIsAuthenticated(false)
 				setUserId(null)
+				currentUserIdRef.current = null
 				setMeals([])
 				setError(null)
 				setLoading(false)
 				return
 			}
 
-			void loadInitialData()
+			if (session.user.id !== currentUserIdRef.current) {
+				void loadInitialData()
+			}
 		})
 
 		return () => {

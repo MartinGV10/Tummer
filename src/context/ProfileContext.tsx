@@ -90,8 +90,18 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     loadProfile()
 
     // refresh profile when auth state changes (login/logout)
-    const { data } = supabase.auth.onAuthStateChange((_event, _session) => {
-      loadProfile()
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        setProfile(null)
+        setIsAuthenticated(false)
+        setError(null)
+        setLoading(false)
+        return
+      }
+
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') {
+        void loadProfile()
+      }
     })
 
     // cleanup subscription on unmount
