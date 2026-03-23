@@ -19,7 +19,7 @@ type CommunityPostRow = {
 
 type ProfileSummary = {
   id: string
-  username: string
+  username: string | null
   avatar_url: string | null
 }
 
@@ -44,7 +44,7 @@ const POST_TYPE_OPTIONS = [
 
 function displayName(profile: ProfileSummary | null): string {
   if (!profile) return 'Community member'
-  return profile.username || 'Community member'
+  return profile.username?.trim() || 'Community member'
 }
 
 function relativeTime(value: string, now: number): string {
@@ -71,13 +71,24 @@ function postTypeLabel(value: string | null): string | null {
   return POST_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? null
 }
 
+function getAvatarUrl(path: string | null | undefined): string | undefined {
+  if (!path) return undefined
+  if (path.startsWith('http')) return path
+
+  const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+  return data.publicUrl
+}
+
 async function fetchProfilesByIds(userIds: string[]): Promise<Record<string, ProfileSummary>> {
   if (userIds.length === 0) return {}
+
+  const uniqueIds = [...new Set(userIds.filter(Boolean))]
+  if (uniqueIds.length === 0) return {}
 
   const { data, error } = await supabase
     .from('profiles')
     .select('id, username, avatar_url')
-    .in('id', userIds)
+    .in('id', uniqueIds)
 
   if (error) {
     console.warn('Error loading post authors:', error)
@@ -85,26 +96,13 @@ async function fetchProfilesByIds(userIds: string[]): Promise<Record<string, Pro
   }
 
   return ((data ?? []) as ProfileSummary[]).reduce<Record<string, ProfileSummary>>((acc, item) => {
-    acc[item.id] = item
+    acc[item.id] = {
+      id: item.id,
+      username: item.username ?? null,
+      avatar_url: item.avatar_url ?? null,
+    }
     return acc
   }, {})
-}
-
-function normalizeJoinedAuthor(value: unknown): ProfileSummary | null {
-  if (!value || Array.isArray(value) || typeof value !== 'object') {
-    return null
-  }
-
-  const raw = value as Partial<ProfileSummary>
-  if (typeof raw.id !== 'string' || typeof raw.username !== 'string') {
-    return null
-  }
-
-  return {
-    id: raw.id,
-    username: raw.username,
-    avatar_url: typeof raw.avatar_url === 'string' ? raw.avatar_url : null,
-  }
 }
 
 async function fetchConditions(): Promise<Record<string, string>> {
@@ -325,9 +323,7 @@ const Community = () => {
       const [postsRes, conditionsLookup] = await Promise.all([
         supabase
           .from('community_posts')
-          .select(
-            'id, user_id, content, tag, post_type, created_at, updated_at, author:profiles!community_posts_user_id_fkey(id, username, avatar_url)'
-          )
+          .select('id, user_id, content, tag, post_type, created_at, updated_at')
           .order('created_at', { ascending: false }),
         fetchConditions(),
       ])
@@ -343,23 +339,19 @@ const Community = () => {
       }
 
       const conditionList = Object.entries(conditionsLookup).map(([id, name]) => ({ id, name }))
-      const rows = ((postsRes.data ?? []) as Array<Partial<CommunityPostRow> & { author?: unknown }>).map((row) => ({
-        ...normalizeCommunityPost(row),
-        author: normalizeJoinedAuthor(row.author),
-      }))
+      const rows = ((postsRes.data ?? []) as Array<Partial<CommunityPostRow>>).map((row) =>
+        normalizeCommunityPost(row)
+      )
+
+      const userIds = [...new Set(rows.map((post) => post.user_id).filter(Boolean))]
+      const profileMap = await fetchProfilesByIds(userIds)
 
       if (!active) return
 
       setConditions(conditionList)
       setConditionMap(conditionsLookup)
-      setPosts(
-        rows.map((post) => ({
-          ...post,
-          conditionName: post.tag ? conditionsLookup[String(post.tag)] ?? post.tag : null,
-        }))
-      )
+      setPosts(mergePosts(rows, profileMap, conditionsLookup))
       setLoading(false)
-      console.log('community posts raw:', postsRes.data)
     }
 
     void loadCommunityData()
@@ -593,7 +585,7 @@ const Community = () => {
             <Avatar
               size="5"
               radius="full"
-              src={profile?.avatar_url ?? undefined}
+              src={getAvatarUrl(profile?.avatar_url)}
               fallback={profile?.first_name?.[0] ?? 'U'}
               color="green"
               className="border border-green-200"
@@ -628,7 +620,7 @@ const Community = () => {
                   <select
                     className="w-full rounded-xl border border-green-200 bg-white px-3 py-2.5 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100"
                     value={composerConditionId}
-                    onChange={(e) => setSelectedConditionId(e.target.value)}
+                    onChange={(e) => setSelectedConditionId(e.target.value || null)}
                   >
                     <option value="">No condition tag</option>
                     {conditions.map((condition) => (
@@ -712,7 +704,7 @@ const Community = () => {
                       <Avatar
                         size="4"
                         radius="full"
-                        src={post.author?.avatar_url ?? undefined}
+                        src={getAvatarUrl(post.author?.avatar_url)}
                         fallback={(post.author?.username?.[0] ?? 'U').toUpperCase()}
                         color="green"
                         className="border border-green-200"
@@ -720,7 +712,7 @@ const Community = () => {
                       <div>
                         <p className="text-sm font-semibold text-gray-900">{displayName(post.author)}</p>
                         <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
-                          <span>@{post.author?.username ?? 'member'}</span>
+                          <span>@{post.author?.username?.trim() || 'member'}</span>
                           <span>&bull;</span>
                           <span>{relativeTime(post.created_at, now)}</span>
                           {post.updated_at !== post.created_at && (
@@ -780,4 +772,3 @@ const Community = () => {
 }
 
 export default Community
-
