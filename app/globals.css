@@ -62,3 +62,22 @@
     @apply bg-background text-foreground;
   }
 } */
+button:not(:disabled),
+select:not(:disabled),
+a[href],
+[role="button"]:not([aria-disabled="true"]),
+input[type="button"]:not(:disabled),
+input[type="submit"]:not(:disabled),
+input[type="reset"]:not(:disabled),
+summary {
+  cursor: pointer;
+}
+
+button:disabled,
+select:disabled,
+[role="button"][aria-disabled="true"],
+input[type="button"]:disabled,
+input[type="submit"]:disabled,
+input[type="reset"]:disabled {
+  cursor: not-allowed;
+}

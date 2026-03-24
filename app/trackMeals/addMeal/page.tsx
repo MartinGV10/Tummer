@@ -239,7 +239,7 @@ const AddMealPage = () => {
                       setType('breakfast')
                       setNotes('')
                     }}
-                    className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700"
+                    className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700 cursor-pointer"
                   >
                     Clear
                   </button>
@@ -271,7 +271,7 @@ const AddMealPage = () => {
                       key={option.value}
                       type="button"
                       onClick={() => setType(option.value)}
-                      className={`text-left rounded-xl border p-3 transition-all ${
+                      className={`text-left rounded-xl border p-3 transition-all cursor-pointer ${
                         selected
                           ? 'border-green-600 bg-green-50 ring-2 ring-green-100'
                           : 'border-gray-200 bg-white hover:border-green-400'
@@ -361,7 +361,7 @@ const AddMealPage = () => {
             Cancel
           </Link>
           <button
-            className="inline-flex items-center justify-center rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white shadow-md transition-all hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white shadow-md transition-all hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
             disabled={isPending}
           >
             {isPending ? (editingMeal ? 'Updating...' : 'Adding...') : editingMeal ? 'Update Meal' : 'Add Meal'}

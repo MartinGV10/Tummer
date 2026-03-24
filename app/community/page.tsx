@@ -793,7 +793,7 @@ const Community = () => {
                   <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Post Type</label>
                   <div className="relative">
                     <select
-                      className="w-full appearance-none rounded-2xl border border-green-200 bg-white px-3 py-3 pr-10 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                      className="w-full appearance-none rounded-2xl border border-green-200 bg-white px-3 py-3 pr-10 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100 cursor-pointer"
                       value={selectedPostType}
                       onChange={(e) => setSelectedPostType(e.target.value)}
                     >
@@ -813,7 +813,7 @@ const Community = () => {
                   <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Condition Tag</label>
                   <div className="relative">
                     <select
-                      className="w-full appearance-none rounded-2xl border border-green-200 bg-white px-3 py-3 pr-10 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                      className="w-full appearance-none rounded-2xl border border-green-200 bg-white px-3 py-3 pr-10 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100 cursor-pointer"
                       value={composerConditionId}
                       onChange={(e) => setSelectedConditionId(e.target.value || null)}
                     >
@@ -853,7 +853,7 @@ const Community = () => {
                     type="button"
                     onClick={handlePost}
                     disabled={!canSubmit || isPending}
-                    className="inline-flex w-full items-center justify-center rounded-2xl bg-green-600 px-4 py-3 text-sm font-medium text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-green-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex w-full items-center justify-center rounded-2xl bg-green-600 px-4 py-3 text-sm font-medium text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-green-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                   >
                     <IconSend2 size={16} />
                     <span className="ml-2">{isPending ? (editingPostId ? 'Saving...' : 'Posting...') : editingPostId ? 'Save Post' : 'Post to Feed'}</span>
@@ -862,7 +862,7 @@ const Community = () => {
                     <button
                       type="button"
                       onClick={resetComposer}
-                      className="inline-flex w-full items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700"
+                      className="inline-flex w-full items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700 cursor-pointer"
                     >
                       <IconX size={16} />
                       <span className="ml-2">Cancel Edit</span>
@@ -947,7 +947,7 @@ const Community = () => {
                           <button
                             type="button"
                             onClick={() => handleEdit(post)}
-                            className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700"
+                            className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700 cursor-pointer"
                           >
                             <IconPencil size={14} />
                             <span className="ml-1.5 hidden sm:inline">Edit</span>
@@ -956,7 +956,7 @@ const Community = () => {
                             type="button"
                             onClick={() => setDeleteConfirmPostId(post.id)}
                             disabled={deletingId === post.id}
-                            className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-medium text-red-700 transition-all hover:border-red-400 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-medium text-red-700 transition-all hover:border-red-400 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                           >
                             <IconTrash size={14} />
                             <span className="ml-1.5 hidden sm:inline">{deletingId === post.id ? 'Deleting...' : 'Delete'}</span>
@@ -974,7 +974,7 @@ const Community = () => {
                         type="button"
                         onClick={() => void handleLikeToggle(post)}
                         disabled={!profile || likingPostIds.includes(post.id)}
-                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer ${
                           post.viewerHasLiked
                             ? 'border-green-300 bg-green-50 text-green-800'
                             : 'border-gray-200 bg-white text-gray-600 hover:border-green-300 hover:text-green-700'

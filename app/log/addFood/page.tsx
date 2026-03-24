@@ -217,7 +217,7 @@ const AddFood = () => {
                       key={option.value}
                       type="button"
                       onClick={() => setStatus(option.value)}
-                      className={`text-left rounded-xl border p-3 transition-all ${
+                      className={`text-left rounded-xl border p-3 transition-all cursor-pointer ${
                         selected
                           ? 'border-green-600 bg-green-50 ring-2 ring-green-100'
                           : 'border-gray-200 bg-white hover:border-green-400'
