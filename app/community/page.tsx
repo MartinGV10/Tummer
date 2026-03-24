@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import React, { useEffect, useMemo, useState, useTransition } from 'react'
+import React, { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { Avatar } from '@radix-ui/themes'
 import { IconChevronDown, IconHeart, IconMessageCircle, IconPencil, IconSend2, IconTrash, IconX } from '@tabler/icons-react'
 import type { PostgrestError } from '@supabase/supabase-js'
@@ -49,6 +49,7 @@ const POST_TYPE_OPTIONS = [
   { value: 'experience', label: 'Experience' },
   { value: 'flare_update', label: 'Flare Update' },
 ] as const
+const COMMUNITY_POST_SELECT = 'id, user_id, content, tag, post_type, created_at, updated_at'
 
 function displayName(profile: ProfileSummary | null): string {
   if (!profile) return 'Community member'
@@ -276,10 +277,14 @@ async function insertCommunityPost(
   userId: string,
   payload: Pick<CommunityPostRow, 'content' | 'tag' | 'post_type'>
 ) {
-  const fullInsert = await supabase.from('community_posts').insert({
-    user_id: userId,
-    ...payload,
-  })
+  const fullInsert = await supabase
+    .from('community_posts')
+    .insert({
+      user_id: userId,
+      ...payload,
+    })
+    .select(COMMUNITY_POST_SELECT)
+    .single()
 
   if (
     fullInsert.error &&
@@ -303,7 +308,11 @@ async function insertCommunityPost(
       fallbackPayload.post_type = payload.post_type
     }
 
-    return supabase.from('community_posts').insert(fallbackPayload)
+    return supabase
+      .from('community_posts')
+      .insert(fallbackPayload)
+      .select(COMMUNITY_POST_SELECT)
+      .single()
   }
 
   return fullInsert
@@ -319,6 +328,8 @@ async function updateCommunityPost(
     .update(payload)
     .eq('id', postId)
     .eq('user_id', userId)
+    .select(COMMUNITY_POST_SELECT)
+    .single()
 
   if (
     fullUpdate.error &&
@@ -345,6 +356,8 @@ async function updateCommunityPost(
       .update(fallbackPayload)
       .eq('id', postId)
       .eq('user_id', userId)
+      .select(COMMUNITY_POST_SELECT)
+      .single()
   }
 
   return fullUpdate
@@ -367,6 +380,7 @@ const Community = () => {
   const [likingPostIds, setLikingPostIds] = useState<string[]>([])
   const [isPending, startTransition] = useTransition()
   const [now, setNow] = useState(() => Date.now())
+  const conditionMapRef = useRef(conditionMap)
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 60_000)
@@ -423,6 +437,10 @@ const Community = () => {
   }, [])
 
   useEffect(() => {
+    conditionMapRef.current = conditionMap
+  }, [conditionMap])
+
+  useEffect(() => {
     const missingTags = [...new Set(
       posts
         .filter((post) => post.tag && !post.conditionName)
@@ -468,7 +486,7 @@ const Community = () => {
         async (payload) => {
           const newPost = normalizeCommunityPost(payload.new as Partial<CommunityPostRow>)
           const profileMap = await fetchProfilesByIds([newPost.user_id])
-          const mergedPost = mergePosts([newPost], profileMap, conditionMap)[0]
+          const mergedPost = mergePosts([newPost], profileMap, conditionMapRef.current)[0]
 
           setPosts((prev) => {
             if (prev.some((post) => post.id === mergedPost.id)) return prev
@@ -488,7 +506,7 @@ const Community = () => {
         async (payload) => {
           const updatedPost = normalizeCommunityPost(payload.new as Partial<CommunityPostRow>)
           const profileMap = await fetchProfilesByIds([updatedPost.user_id])
-          const mergedPost = mergePosts([updatedPost], profileMap, conditionMap)[0]
+          const mergedPost = mergePosts([updatedPost], profileMap, conditionMapRef.current)[0]
 
           setPosts((prev) =>
             prev.map((post) => (post.id === mergedPost.id ? { ...mergedPost, likeCount: post.likeCount, viewerHasLiked: post.viewerHasLiked } : post))
@@ -552,7 +570,7 @@ const Community = () => {
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [conditionMap, profile?.id])
+  }, [profile?.id])
 
   const remainingChars = POST_CHAR_LIMIT - content.length
   const composerConditionId = selectedConditionId ?? profile?.condition_id ?? ''
@@ -668,6 +686,35 @@ const Community = () => {
         return
       }
 
+      const savedPostRow = response.data ? normalizeCommunityPost(response.data as Partial<CommunityPostRow>) : null
+
+      if (savedPostRow) {
+        const currentUserProfile: Record<string, ProfileSummary> = {
+          [profile.id]: {
+            id: profile.id,
+            username: profile.username ?? null,
+            avatar_url: profile.avatar_url ?? null,
+          },
+        }
+        const mergedPost = mergePosts([savedPostRow], currentUserProfile, conditionMapRef.current)[0]
+
+        setPosts((prev) => {
+          if (editingPostId) {
+            return prev.map((post) => (
+              post.id === mergedPost.id
+                ? { ...mergedPost, likeCount: post.likeCount, viewerHasLiked: post.viewerHasLiked }
+                : post
+            ))
+          }
+
+          if (prev.some((post) => post.id === mergedPost.id)) return prev
+
+          return [mergedPost, ...prev].sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          )
+        })
+      }
+
       resetComposer()
     })
   }
@@ -741,7 +788,7 @@ const Community = () => {
                   type="button"
                   onClick={() => setDeleteConfirmPostId(null)}
                   disabled={Boolean(deletingId)}
-                  className="inline-flex items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -749,7 +796,7 @@ const Community = () => {
                   type="button"
                   onClick={() => void handleDelete(deleteConfirmPostId)}
                   disabled={Boolean(deletingId)}
-                  className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition-all hover:border-red-400 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition-all hover:border-red-400 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                 >
                   {deletingId === deleteConfirmPostId ? 'Deleting...' : 'Delete Post'}
                 </button>
@@ -999,6 +1046,9 @@ const Community = () => {
 }
 
 export default Community
+
+
+
 
 
 
