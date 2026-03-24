@@ -1,6 +1,6 @@
 'use client'
 import { supabase } from '@/lib/supabaseClient'
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 export type Daily = {
   id: string
@@ -111,36 +111,71 @@ export function HealthProvider({ children } : { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const currentUserIdRef = useRef<string | null>(null)
 
   const loadInitialData = useCallback(async () => {
     setLoading(true)
     setError(null)
 
-    const {
-      data: { user },
-      error: userError
-    } = await supabase.auth.getUser()
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
 
-    if (userError || !user) {
+      if (!session) {
+        setIsAuthenticated(false)
+        setUserId(null)
+        currentUserIdRef.current = null
+        setDaily(null)
+        setSymptoms([])
+        setBowels([])
+        return
+      }
+
+      setIsAuthenticated(true)
+      setUserId(session.user.id)
+      currentUserIdRef.current = session.user.id
+
+      await refreshHealthInternal(session.user.id)
+    } catch (err) {
+      console.error('Unexpected error loading health data:', err)
+      setError('An unexpected error occurred while loading your health data')
       setIsAuthenticated(false)
       setUserId(null)
+      currentUserIdRef.current = null
       setDaily(null)
       setSymptoms([])
       setBowels([])
+    } finally {
       setLoading(false)
-      if (userError) setError(userError.message)
-      return
     }
-
-    setIsAuthenticated(true)
-    setUserId(user.id)
-
-    await refreshHealthInternal(user.id)
-    setLoading(false)
   }, []) 
 
   useEffect(() => {
     loadInitialData()
+
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session) {
+        if (currentUserIdRef.current === null) return
+        setIsAuthenticated(false)
+        setUserId(null)
+        currentUserIdRef.current = null
+        setDaily(null)
+        setSymptoms([])
+        setBowels([])
+        setError(null)
+        setLoading(false)
+        return
+      }
+
+      if (session.user.id !== currentUserIdRef.current || event === 'USER_UPDATED') {
+        void loadInitialData()
+      }
+    })
+
+    return () => {
+      data?.subscription?.unsubscribe()
+    }
   }, [loadInitialData])
 
   const refreshHealthInternal = useCallback(
