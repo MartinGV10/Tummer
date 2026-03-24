@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import React, { useEffect, useMemo, useState, useTransition } from 'react'
 import { Avatar } from '@radix-ui/themes'
-import { IconArrowLeft, IconMessageCircle, IconSend2 } from '@tabler/icons-react'
+import { IconArrowLeft, IconChevronDown, IconMessageCircle, IconSend2, IconX } from '@tabler/icons-react'
 import { supabase } from '@/lib/supabaseClient'
 import { useProfile } from '@/src/context/ProfileContext'
 import CommunityPostCard from '../CommunityPostCard'
@@ -11,6 +12,7 @@ import {
   applyCommentCountsToPosts,
   applyLikesToPosts,
   COMMENT_CHAR_LIMIT,
+  Condition,
   COMMUNITY_COMMENT_SELECT,
   COMMUNITY_POST_SELECT,
   CommunityComment,
@@ -24,11 +26,15 @@ import {
   formatPostDebugDetails,
   getAvatarUrl,
   getFriendlyCommentError,
+  getFriendlyPostError,
   mergeComments,
   mergePosts,
   normalizeCommunityComment,
   normalizeCommunityPost,
+  POST_CHAR_LIMIT,
+  POST_TYPE_OPTIONS,
   relativeTime,
+  updateCommunityPost,
 } from '../communityData'
 
 type CommunityPostDetailPageProps = {
@@ -44,10 +50,20 @@ function sortComments(comments: CommunityComment[]): CommunityComment[] {
 }
 
 export default function CommunityPostDetailPage({ params }: CommunityPostDetailPageProps) {
+  const router = useRouter()
   const { profile } = useProfile()
   const [postId, setPostId] = useState('')
   const [post, setPost] = useState<CommunityPost | null>(null)
   const [comments, setComments] = useState<CommunityComment[]>([])
+  const [conditions, setConditions] = useState<Condition[]>([])
+  const [conditionMap, setConditionMap] = useState<Record<string, string>>({})
+  const [editContent, setEditContent] = useState('')
+  const [selectedConditionId, setSelectedConditionId] = useState<string | null>(null)
+  const [selectedPostType, setSelectedPostType] = useState('')
+  const [isEditingPost, setIsEditingPost] = useState(false)
+  const [postSubmitError, setPostSubmitError] = useState<string | null>(null)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deletingPost, setDeletingPost] = useState(false)
   const [replyContent, setReplyContent] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -55,6 +71,7 @@ export default function CommunityPostDetailPage({ params }: CommunityPostDetailP
   const [likingPostIds, setLikingPostIds] = useState<string[]>([])
   const [now, setNow] = useState(() => Date.now())
   const [isPending, startTransition] = useTransition()
+  const [isSavingPost, startPostTransition] = useTransition()
 
   useEffect(() => {
     let active = true
@@ -146,6 +163,8 @@ export default function CommunityPostDetailPage({ params }: CommunityPostDetailP
         { [postId]: commentRows.length }
       )[0]
 
+      setConditions(Object.entries(conditionMap).map(([id, name]) => ({ id, name })))
+      setConditionMap(conditionMap)
       setPost(postWithCounts)
       setComments(sortComments(mergeComments(commentRows, profileMap)))
       setLoading(false)
@@ -157,6 +176,15 @@ export default function CommunityPostDetailPage({ params }: CommunityPostDetailP
       active = false
     }
   }, [postId, profile?.id])
+
+  useEffect(() => {
+    if (!post) return
+
+    setEditContent(post.content)
+    setSelectedConditionId(post.tag ?? null)
+    setSelectedPostType(post.post_type ?? '')
+    setPostSubmitError(null)
+  }, [post])
 
   useEffect(() => {
     if (!postId) return
@@ -317,6 +345,24 @@ export default function CommunityPostDetailPage({ params }: CommunityPostDetailP
   }, [postId, profile?.id])
 
   const remainingChars = COMMENT_CHAR_LIMIT - replyContent.length
+  const postRemainingChars = POST_CHAR_LIMIT - editContent.length
+  const isOwner = post?.user_id === profile?.id
+  const canSavePost =
+    Boolean(profile) &&
+    Boolean(post) &&
+    isOwner &&
+    editContent.trim().length > 0 &&
+    editContent.length <= POST_CHAR_LIMIT &&
+    selectedPostType.trim().length > 0
+
+  const resetPostEditor = () => {
+    if (!post) return
+    setEditContent(post.content)
+    setSelectedConditionId(post.tag ?? null)
+    setSelectedPostType(post.post_type ?? '')
+    setPostSubmitError(null)
+    setIsEditingPost(false)
+  }
 
   const handleLikeToggle = async (targetPost: CommunityPost) => {
     if (!profile) return
@@ -367,6 +413,83 @@ export default function CommunityPostDetailPage({ params }: CommunityPostDetailP
     }
 
     setLikingPostIds((prev) => prev.filter((value) => value !== targetPost.id))
+  }
+
+  const handleEditPost = (targetPost: CommunityPost) => {
+    if (targetPost.user_id !== profile?.id) return
+    setEditContent(targetPost.content)
+    setSelectedConditionId(targetPost.tag ?? null)
+    setSelectedPostType(targetPost.post_type ?? '')
+    setPostSubmitError(null)
+    setIsEditingPost(true)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const handlePostSave = () => {
+    if (!profile || !post || post.user_id !== profile.id) return
+
+    if (!editContent.trim()) {
+      setPostSubmitError('Write something before saving.')
+      return
+    }
+
+    if (!selectedPostType.trim()) {
+      setPostSubmitError('Choose what kind of post this is.')
+      return
+    }
+
+    if (editContent.length > POST_CHAR_LIMIT) {
+      setPostSubmitError(`Posts must be ${POST_CHAR_LIMIT} characters or less.`)
+      return
+    }
+
+    setPostSubmitError(null)
+
+    startPostTransition(async () => {
+      const response = await updateCommunityPost(post.id, profile.id, {
+        content: editContent.trim(),
+        tag: selectedConditionId || null,
+        post_type: selectedPostType || null,
+      })
+
+      if (response.error) {
+        console.warn('Community post update failed:', response.error)
+        setPostSubmitError(`${getFriendlyPostError(response.error, true)}${formatPostDebugDetails(response.error)}`)
+        return
+      }
+
+      const savedPost = normalizeCommunityPost(response.data as Partial<CommunityPostRow>)
+
+      setPost((prev) => prev ? {
+        ...prev,
+        ...savedPost,
+        conditionName: savedPost.tag ? conditionMap[String(savedPost.tag)] ?? savedPost.tag : null,
+      } : prev)
+      setIsEditingPost(false)
+    })
+  }
+
+  const handleDeletePost = async () => {
+    if (!profile || !post || post.user_id !== profile.id) return
+
+    setDeletingPost(true)
+    setError(null)
+
+    const { error: deleteError } = await supabase
+      .from('community_posts')
+      .delete()
+      .eq('id', post.id)
+      .eq('user_id', profile.id)
+
+    if (deleteError) {
+      console.error('Error deleting community post:', deleteError)
+      setError('Could not delete that post.')
+      setDeletingPost(false)
+      setDeleteConfirmOpen(false)
+      return
+    }
+
+    router.push('/community')
   }
 
   const handleReplySubmit = () => {
@@ -437,6 +560,40 @@ export default function CommunityPostDetailPage({ params }: CommunityPostDetailP
   return (
     <div className="min-h-screen bg-gray-100 px-4 py-6 md:px-6 md:py-8">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+        {deleteConfirmOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/40 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-green-200 bg-white shadow-xl">
+              <div className="border-b border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">Confirm Delete</p>
+                <h2 className="mt-1 text-lg font-semibold text-gray-900">Delete this post?</h2>
+              </div>
+              <div className="space-y-4 px-5 py-5">
+                <p className="text-sm leading-6 text-gray-600">
+                  This will permanently remove the post and send you back to the community feed.
+                </p>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirmOpen(false)}
+                    disabled={deletingPost}
+                    className="inline-flex items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDeletePost()}
+                    disabled={deletingPost}
+                    className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition-all hover:border-red-400 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                  >
+                    {deletingPost ? 'Deleting...' : 'Delete Post'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-between rounded-[28px] border border-green-100 bg-white px-5 py-4 shadow-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">Post Discussion</p>
@@ -472,9 +629,102 @@ export default function CommunityPostDetailPage({ params }: CommunityPostDetailP
               canLike={Boolean(profile)}
               isLiking={likingPostIds.includes(post.id)}
               onLikeToggle={handleLikeToggle}
+              onEdit={isOwner ? handleEditPost : undefined}
+              onDelete={isOwner ? () => setDeleteConfirmOpen(true) : undefined}
+              deletingId={deletingPost ? post.id : null}
               hideReplyLink
               className="hover:border-green-200 hover:shadow-sm"
             />
+
+            {isOwner && isEditingPost && (
+              <section className="overflow-hidden rounded-[28px] border border-green-200 bg-white shadow-sm">
+                <div className="border-b border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 px-5 py-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">Edit Post</p>
+                  <h2 className="mt-1 text-lg font-semibold text-gray-900">Update your post</h2>
+                </div>
+
+                <div className="space-y-4 p-5">
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Post Type</label>
+                    <div className="relative">
+                      <select
+                        className="w-full appearance-none rounded-2xl border border-green-200 bg-white px-3 py-3 pr-10 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100 cursor-pointer"
+                        value={selectedPostType}
+                        onChange={(e) => setSelectedPostType(e.target.value)}
+                      >
+                        <option value="">Choose a post type</option>
+                        {POST_TYPE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>{option.label}</option>
+                        ))}
+                      </select>
+                      <IconChevronDown
+                        size={16}
+                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Condition Tag</label>
+                    <div className="relative">
+                      <select
+                        className="w-full appearance-none rounded-2xl border border-green-200 bg-white px-3 py-3 pr-10 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100 cursor-pointer"
+                        value={selectedConditionId ?? ''}
+                        onChange={(e) => setSelectedConditionId(e.target.value || null)}
+                      >
+                        <option value="">No condition tag</option>
+                        {conditions.map((condition) => (
+                          <option key={condition.id} value={condition.id}>{condition.name}</option>
+                        ))}
+                      </select>
+                      <IconChevronDown
+                        size={16}
+                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Message</label>
+                    <textarea
+                      value={editContent}
+                      maxLength={POST_CHAR_LIMIT}
+                      rows={6}
+                      placeholder="What's been going on with your condition lately?"
+                      className="w-full resize-none rounded-3xl border border-green-200 bg-green-50/60 px-4 py-3 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                      onChange={(e) => setEditContent(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="rounded-2xl border border-green-100 bg-green-50/70 px-3 py-2.5 text-xs text-gray-600">
+                    <span className={postRemainingChars < 50 ? 'font-semibold text-amber-700' : 'font-medium text-green-800'}>
+                      {postRemainingChars} characters remaining
+                    </span>
+                    {postSubmitError && <p className="mt-1.5 text-red-600">{postSubmitError}</p>}
+                  </div>
+
+                  <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                    <button
+                      type="button"
+                      onClick={resetPostEditor}
+                      className="inline-flex items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700 cursor-pointer"
+                    >
+                      <IconX size={16} />
+                      <span className="ml-2">Cancel Edit</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePostSave}
+                      disabled={!canSavePost || isSavingPost}
+                      className="inline-flex items-center justify-center rounded-2xl bg-green-600 px-4 py-3 text-sm font-medium text-white shadow-md transition-all hover:bg-green-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                    >
+                      <IconSend2 size={16} />
+                      <span className="ml-2">{isSavingPost ? 'Saving...' : 'Save Post'}</span>
+                    </button>
+                  </div>
+                </div>
+              </section>
+            )}
 
             <section className="overflow-hidden rounded-[28px] border border-green-200 bg-white shadow-sm">
               <div className="flex items-center gap-3 px-4 py-4 sm:px-5">
