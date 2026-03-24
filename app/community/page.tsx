@@ -1,367 +1,35 @@
-﻿'use client'
+'use client'
 
 import React, { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { Avatar } from '@radix-ui/themes'
-import { IconChevronDown, IconHeart, IconMessageCircle, IconPencil, IconSend2, IconTrash, IconX } from '@tabler/icons-react'
-import type { PostgrestError } from '@supabase/supabase-js'
+import { IconChevronDown, IconMessageCircle, IconSend2, IconX } from '@tabler/icons-react'
 import { supabase } from '@/lib/supabaseClient'
 import { useProfile } from '@/src/context/ProfileContext'
-
-type CommunityPostRow = {
-  id: string
-  user_id: string
-  content: string
-  tag: string | null
-  post_type: string | null
-  created_at: string
-  updated_at: string
-}
-
-type ProfileSummary = {
-  id: string
-  username: string | null
-  avatar_url: string | null
-}
-
-type CommunityPostLikeRow = {
-  id: string
-  post_id: string
-  user_id: string
-  created_at: string
-}
-
-type Condition = {
-  id: string
-  name: string
-}
-
-type CommunityPost = CommunityPostRow & {
-  author: ProfileSummary | null
-  conditionName: string | null
-  likeCount: number
-  viewerHasLiked: boolean
-}
-const POST_CHAR_LIMIT = 500
-const POST_TYPE_OPTIONS = [
-  { value: 'question', label: 'Question' },
-  { value: 'advice', label: 'Advice' },
-  { value: 'tip', label: 'Tip' },
-  { value: 'experience', label: 'Experience' },
-  { value: 'flare_update', label: 'Flare Update' },
-] as const
-const COMMUNITY_POST_SELECT = 'id, user_id, content, tag, post_type, created_at, updated_at'
-
-function displayName(profile: ProfileSummary | null): string {
-  if (!profile) return 'Community member'
-  return profile.username?.trim() || 'Community member'
-}
-
-function relativeTime(value: string, now: number): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'Just now'
-
-  const diffSeconds = Math.max(0, Math.floor((now - date.getTime()) / 1000))
-  if (diffSeconds < 10) return 'Just now'
-  if (diffSeconds < 60) return `${diffSeconds}s ago`
-
-  const diffMinutes = Math.floor(diffSeconds / 60)
-  if (diffMinutes < 60) return `${diffMinutes}m ago`
-
-  const diffHours = Math.floor(diffMinutes / 60)
-  if (diffHours < 24) return `${diffHours}h ago`
-
-  const diffDays = Math.floor(diffHours / 24)
-  if (diffDays < 7) return `${diffDays}d ago`
-
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-function postTypeLabel(value: string | null): string | null {
-  return POST_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? null
-}
-
-function getAvatarUrl(path: string | null | undefined): string | undefined {
-  if (!path) return undefined
-  if (path.startsWith('http')) return path
-
-  const { data } = supabase.storage.from('avatars').getPublicUrl(path)
-  return data.publicUrl
-}
-
-async function fetchProfilesByIds(userIds: string[]): Promise<Record<string, ProfileSummary>> {
-  if (userIds.length === 0) return {}
-
-  const uniqueIds = [...new Set(userIds.filter(Boolean))]
-  if (uniqueIds.length === 0) return {}
-
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('id, username, avatar_url')
-    .in('id', uniqueIds)
-
-  if (error) {
-    console.warn('Error loading post authors:', error)
-    return {}
-  }
-
-  return ((data ?? []) as ProfileSummary[]).reduce<Record<string, ProfileSummary>>((acc, item) => {
-    acc[item.id] = {
-      id: item.id,
-      username: item.username ?? null,
-      avatar_url: item.avatar_url ?? null,
-    }
-    return acc
-  }, {})
-}
-
-async function fetchConditions(): Promise<Record<string, string>> {
-  const { data, error } = await supabase
-    .from('conditions')
-    .select('id, name')
-    .order('name', { ascending: true })
-
-  if (error) {
-    console.error('Error loading conditions for community:', error)
-    return {}
-  }
-
-  return ((data ?? []) as Condition[]).reduce<Record<string, string>>((acc, item) => {
-    acc[String(item.id)] = item.name
-    return acc
-  }, {})
-}
-
-async function fetchConditionNamesByIds(conditionIds: string[]): Promise<Record<string, string>> {
-  if (conditionIds.length === 0) return {}
-
-  const uniqueIds = [...new Set(conditionIds.map((id) => String(id)).filter(Boolean))]
-  if (uniqueIds.length === 0) return {}
-
-  const { data, error } = await supabase
-    .from('conditions')
-    .select('id, name')
-    .in('id', uniqueIds)
-
-  if (error) {
-    console.error('Error loading condition tags for posts:', error)
-    return {}
-  }
-
-  return ((data ?? []) as Condition[]).reduce<Record<string, string>>((acc, item) => {
-    acc[String(item.id)] = item.name
-    return acc
-  }, {})
-}
-
-function mergePosts(
-  posts: CommunityPostRow[],
-  profiles: Record<string, ProfileSummary>,
-  conditions: Record<string, string>
-): CommunityPost[] {
-  return posts.map((post) => ({
-    ...post,
-    author: profiles[post.user_id] ?? null,
-    conditionName: post.tag ? conditions[String(post.tag)] ?? post.tag : null,
-    likeCount: 0,
-    viewerHasLiked: false,
-  }))
-}
-
-async function fetchLikesForPosts(
-  postIds: string[],
-  viewerId: string | null | undefined
-): Promise<{ counts: Record<string, number>; viewerLikedPostIds: Set<string> }> {
-  if (postIds.length === 0) {
-    return { counts: {}, viewerLikedPostIds: new Set<string>() }
-  }
-
-  const uniqueIds = [...new Set(postIds.filter(Boolean))]
-  if (uniqueIds.length === 0) {
-    return { counts: {}, viewerLikedPostIds: new Set<string>() }
-  }
-
-  const { data, error } = await supabase
-    .from('community_post_likes')
-    .select('id, post_id, user_id, created_at')
-    .in('post_id', uniqueIds)
-
-  if (error) {
-    console.warn('Error loading likes for community posts:', error)
-    return { counts: {}, viewerLikedPostIds: new Set<string>() }
-  }
-
-  const counts: Record<string, number> = {}
-  const viewerLikedPostIds = new Set<string>()
-
-  for (const like of (data ?? []) as CommunityPostLikeRow[]) {
-    counts[like.post_id] = (counts[like.post_id] ?? 0) + 1
-    if (viewerId && like.user_id === viewerId) {
-      viewerLikedPostIds.add(like.post_id)
-    }
-  }
-
-  return { counts, viewerLikedPostIds }
-}
-
-function applyLikesToPosts(
-  posts: CommunityPost[],
-  counts: Record<string, number>,
-  viewerLikedPostIds: Set<string>
-): CommunityPost[] {
-  return posts.map((post) => ({
-    ...post,
-    likeCount: counts[post.id] ?? 0,
-    viewerHasLiked: viewerLikedPostIds.has(post.id),
-  }))
-}
-
-function normalizeCommunityPost(row: Partial<CommunityPostRow>): CommunityPostRow {
-  const createdAt = typeof row.created_at === 'string' ? row.created_at : new Date(0).toISOString()
-  const updatedAt = typeof row.updated_at === 'string' ? row.updated_at : createdAt
-  const legacyConditionId = (row as Partial<{ condition_id: string | null }>).condition_id ?? null
-
-  return {
-    id: row.id ?? '',
-    user_id: row.user_id ?? '',
-    content: row.content ?? '',
-    tag: row.tag ?? legacyConditionId,
-    post_type: row.post_type ?? null,
-    created_at: createdAt,
-    updated_at: updatedAt,
-  }
-}
-
-function isMissingColumnError(error: PostgrestError | null, column: string): boolean {
-  if (!error) return false
-
-  const haystack = [error.message, error.details, error.hint]
-    .filter((value): value is string => Boolean(value))
-    .join(' ')
-    .toLowerCase()
-
-  return haystack.includes(column.toLowerCase()) && (
-    haystack.includes('column') ||
-    haystack.includes('schema cache') ||
-    haystack.includes('could not find')
-  )
-}
-
-function getFriendlyPostError(error: PostgrestError | null, isEditing: boolean): string {
-  if (!error) {
-    return isEditing ? 'Could not update your post right now.' : 'Could not publish your post right now.'
-  }
-
-  if (error.code === '42501') {
-    return isEditing
-      ? 'You do not have permission to update this post.'
-      : 'You do not have permission to publish posts yet.'
-  }
-
-  if (error.code === '23503') {
-    return 'Your post uses a condition tag that is no longer available.'
-  }
-
-  return isEditing ? 'Could not update your post right now.' : 'Could not publish your post right now.'
-}
-
-function formatPostDebugDetails(error: PostgrestError | null): string {
-  if (!error) return ''
-
-  const parts = [error.code, error.message, error.details, error.hint]
-    .filter((value): value is string => Boolean(value && value.trim()))
-
-  return parts.length > 0 ? ` (${parts.join(' | ')})` : ''
-}
-
-async function insertCommunityPost(
-  userId: string,
-  payload: Pick<CommunityPostRow, 'content' | 'tag' | 'post_type'>
-) {
-  const fullInsert = await supabase
-    .from('community_posts')
-    .insert({
-      user_id: userId,
-      ...payload,
-    })
-    .select(COMMUNITY_POST_SELECT)
-    .single()
-
-  if (
-    fullInsert.error &&
-    (isMissingColumnError(fullInsert.error, 'tag') || isMissingColumnError(fullInsert.error, 'post_type'))
-  ) {
-    const fallbackPayload: {
-      user_id: string
-      content: string
-      tag?: string | null
-      post_type?: string | null
-    } = {
-      user_id: userId,
-      content: payload.content,
-    }
-
-    if (!isMissingColumnError(fullInsert.error, 'tag')) {
-      fallbackPayload.tag = payload.tag
-    }
-
-    if (!isMissingColumnError(fullInsert.error, 'post_type')) {
-      fallbackPayload.post_type = payload.post_type
-    }
-
-    return supabase
-      .from('community_posts')
-      .insert(fallbackPayload)
-      .select(COMMUNITY_POST_SELECT)
-      .single()
-  }
-
-  return fullInsert
-}
-
-async function updateCommunityPost(
-  postId: string,
-  userId: string,
-  payload: Pick<CommunityPostRow, 'content' | 'tag' | 'post_type'>
-) {
-  const fullUpdate = await supabase
-    .from('community_posts')
-    .update(payload)
-    .eq('id', postId)
-    .eq('user_id', userId)
-    .select(COMMUNITY_POST_SELECT)
-    .single()
-
-  if (
-    fullUpdate.error &&
-    (isMissingColumnError(fullUpdate.error, 'post_type') || isMissingColumnError(fullUpdate.error, 'tag'))
-  ) {
-    const fallbackPayload: {
-      content: string
-      tag?: string | null
-      post_type?: string | null
-    } = {
-      content: payload.content,
-    }
-
-    if (!isMissingColumnError(fullUpdate.error, 'tag')) {
-      fallbackPayload.tag = payload.tag
-    }
-
-    if (!isMissingColumnError(fullUpdate.error, 'post_type')) {
-      fallbackPayload.post_type = payload.post_type
-    }
-
-    return supabase
-      .from('community_posts')
-      .update(fallbackPayload)
-      .eq('id', postId)
-      .eq('user_id', userId)
-      .select(COMMUNITY_POST_SELECT)
-      .single()
-  }
-
-  return fullUpdate
-}
+import CommunityPostCard from './CommunityPostCard'
+import {
+  applyCommentCountsToPosts,
+  applyLikesToPosts,
+  CommunityPost,
+  CommunityPostCommentRow,
+  CommunityPostLikeRow,
+  CommunityPostRow,
+  Condition,
+  fetchCommentCountsForPosts,
+  fetchConditionNamesByIds,
+  fetchConditions,
+  fetchLikesForPosts,
+  fetchProfilesByIds,
+  formatPostDebugDetails,
+  getAvatarUrl,
+  getFriendlyPostError,
+  insertCommunityPost,
+  mergePosts,
+  normalizeCommunityPost,
+  POST_CHAR_LIMIT,
+  POST_TYPE_OPTIONS,
+  ProfileSummary,
+  updateCommunityPost,
+} from './communityData'
 
 const Community = () => {
   const { profile } = useProfile()
@@ -413,19 +81,23 @@ const Community = () => {
       }
 
       const conditionList = Object.entries(conditionsLookup).map(([id, name]) => ({ id, name }))
-      const rows = ((postsRes.data ?? []) as Array<Partial<CommunityPostRow>>).map((row) =>
-        normalizeCommunityPost(row)
-      )
-
+      const rows = ((postsRes.data ?? []) as Array<Partial<CommunityPostRow>>).map((row) => normalizeCommunityPost(row))
       const userIds = [...new Set(rows.map((post) => post.user_id).filter(Boolean))]
-      const profileMap = await fetchProfilesByIds(userIds)
-      const { counts, viewerLikedPostIds } = await fetchLikesForPosts(rows.map((post) => post.id), profile?.id)
+
+      const [profileMap, likes, commentCounts] = await Promise.all([
+        fetchProfilesByIds(userIds),
+        fetchLikesForPosts(rows.map((post) => post.id), profile?.id),
+        fetchCommentCountsForPosts(rows.map((post) => post.id)),
+      ])
 
       if (!active) return
 
+      const mergedPosts = mergePosts(rows, profileMap, conditionsLookup)
+      const postsWithLikes = applyLikesToPosts(mergedPosts, likes.counts, likes.viewerLikedPostIds)
+
       setConditions(conditionList)
       setConditionMap(conditionsLookup)
-      setPosts(applyLikesToPosts(mergePosts(rows, profileMap, conditionsLookup), counts, viewerLikedPostIds))
+      setPosts(applyCommentCountsToPosts(postsWithLikes, commentCounts))
       setLoading(false)
     }
 
@@ -434,7 +106,7 @@ const Community = () => {
     return () => {
       active = false
     }
-  }, [])
+  }, [profile?.id])
 
   useEffect(() => {
     conditionMapRef.current = conditionMap
@@ -509,7 +181,16 @@ const Community = () => {
           const mergedPost = mergePosts([updatedPost], profileMap, conditionMapRef.current)[0]
 
           setPosts((prev) =>
-            prev.map((post) => (post.id === mergedPost.id ? { ...mergedPost, likeCount: post.likeCount, viewerHasLiked: post.viewerHasLiked } : post))
+            prev.map((post) => (
+              post.id === mergedPost.id
+                ? {
+                    ...mergedPost,
+                    likeCount: post.likeCount,
+                    viewerHasLiked: post.viewerHasLiked,
+                    commentCount: post.commentCount,
+                  }
+                : post
+            ))
           )
         }
       )
@@ -565,6 +246,38 @@ const Community = () => {
           }))
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'community_post_comments',
+        },
+        (payload) => {
+          const comment = payload.new as CommunityPostCommentRow
+          setPosts((prev) => prev.map((post) => (
+            post.id === comment.post_id
+              ? { ...post, commentCount: post.commentCount + 1 }
+              : post
+          )))
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'community_post_comments',
+        },
+        (payload) => {
+          const comment = payload.old as CommunityPostCommentRow
+          setPosts((prev) => prev.map((post) => (
+            post.id === comment.post_id
+              ? { ...post, commentCount: Math.max(0, post.commentCount - 1) }
+              : post
+          )))
+        }
+      )
       .subscribe()
 
     return () => {
@@ -605,14 +318,14 @@ const Community = () => {
     }))
 
     if (wasLiked) {
-      const { error } = await supabase
+      const { error: likeError } = await supabase
         .from('community_post_likes')
         .delete()
         .eq('post_id', post.id)
         .eq('user_id', profile.id)
 
-      if (error) {
-        console.error('Error removing community post like:', error)
+      if (likeError) {
+        console.error('Error removing community post like:', likeError)
         setPosts((prev) => prev.map((item) => {
           if (item.id !== post.id) return item
           return {
@@ -624,15 +337,15 @@ const Community = () => {
         setError('Could not remove your like right now.')
       }
     } else {
-      const { error } = await supabase
+      const { error: likeError } = await supabase
         .from('community_post_likes')
         .insert({
           post_id: post.id,
           user_id: profile.id,
         })
 
-      if (error) {
-        console.error('Error adding community post like:', error)
+      if (likeError) {
+        console.error('Error adding community post like:', likeError)
         setPosts((prev) => prev.map((item) => {
           if (item.id !== post.id) return item
           return {
@@ -702,7 +415,12 @@ const Community = () => {
           if (editingPostId) {
             return prev.map((post) => (
               post.id === mergedPost.id
-                ? { ...mergedPost, likeCount: post.likeCount, viewerHasLiked: post.viewerHasLiked }
+                ? {
+                    ...mergedPost,
+                    likeCount: post.likeCount,
+                    viewerHasLiked: post.viewerHasLiked,
+                    commentCount: post.commentCount,
+                  }
                 : post
             ))
           }
@@ -732,14 +450,14 @@ const Community = () => {
     setDeletingId(postId)
     setError(null)
 
-    const { error } = await supabase
+    const { error: deleteError } = await supabase
       .from('community_posts')
       .delete()
       .eq('id', postId)
       .eq('user_id', profile?.id ?? '')
 
-    if (error) {
-      console.error('Error deleting community post:', error)
+    if (deleteError) {
+      console.error('Error deleting community post:', deleteError)
       setError('Could not delete that post.')
       setDeletingId(null)
       return
@@ -772,39 +490,40 @@ const Community = () => {
   return (
     <div className="min-h-screen bg-gray-100 px-4 py-6 md:px-6 md:py-8">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 xl:grid xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
-      {deleteConfirmPostId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/40 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-green-200 bg-white shadow-xl">
-            <div className="border-b border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 px-5 py-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">Confirm Delete</p>
-              <h2 className="mt-1 text-lg font-semibold text-gray-900">Delete this post?</h2>
-            </div>
-            <div className="space-y-4 px-5 py-5">
-              <p className="text-sm leading-6 text-gray-600">
-                This will permanently remove the post from the community feed.
-              </p>
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={() => setDeleteConfirmPostId(null)}
-                  disabled={Boolean(deletingId)}
-                  className="inline-flex items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleDelete(deleteConfirmPostId)}
-                  disabled={Boolean(deletingId)}
-                  className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition-all hover:border-red-400 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-                >
-                  {deletingId === deleteConfirmPostId ? 'Deleting...' : 'Delete Post'}
-                </button>
+        {deleteConfirmPostId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/40 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-green-200 bg-white shadow-xl">
+              <div className="border-b border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">Confirm Delete</p>
+                <h2 className="mt-1 text-lg font-semibold text-gray-900">Delete this post?</h2>
+              </div>
+              <div className="space-y-4 px-5 py-5">
+                <p className="text-sm leading-6 text-gray-600">
+                  This will permanently remove the post from the community feed.
+                </p>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirmPostId(null)}
+                    disabled={Boolean(deletingId)}
+                    className="inline-flex items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDelete(deleteConfirmPostId)}
+                    disabled={Boolean(deletingId)}
+                    className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition-all hover:border-red-400 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                  >
+                    {deletingId === deleteConfirmPostId ? 'Deleting...' : 'Delete Post'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
         <aside className="xl:sticky xl:top-24">
           <div className="overflow-hidden rounded-[28px] border border-green-200 bg-white shadow-sm">
             <div className="border-b border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 px-5 py-5">
@@ -946,98 +665,21 @@ const Community = () => {
           ) : posts.length === 0 ? (
             emptyState
           ) : (
-            posts.map((post) => {
-              const isOwner = post.user_id === profile?.id
-              const postType = postTypeLabel(post.post_type)
-
-              return (
-                <article
-                  key={post.id}
-                  className="overflow-hidden rounded-[28px] border border-green-200 bg-white shadow-sm transition-all hover:border-green-300 hover:shadow-md"
-                >
-                  <div className="border-b border-green-100 px-5 py-4 sm:px-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex min-w-0 items-start gap-3">
-                        <Avatar
-                          size="4"
-                          radius="full"
-                          src={getAvatarUrl(post.author?.avatar_url)}
-                          fallback={(post.author?.username?.[0] ?? 'U').toUpperCase()}
-                          color="green"
-                          className="border border-green-200"
-                        />
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                            <p className="text-sm font-semibold text-gray-900">{displayName(post.author)}</p>
-                            <span className="text-xs text-gray-400">@{post.author?.username?.trim() || 'member'}</span>
-                            <span className="hidden text-xs text-gray-300 sm:inline">•</span>
-                            <span className="text-xs text-gray-500">{relativeTime(post.created_at, now)}</span>
-                            {post.updated_at !== post.created_at && <span className="text-xs text-gray-400">Edited</span>}
-                          </div>
-                          <div className="mt-2 flex flex-wrap gap-2">
-                            {postType && (
-                              <span className="rounded-full bg-green-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-green-800">
-                                {postType}
-                              </span>
-                            )}
-                            {post.conditionName && (
-                              <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-700">
-                                {post.conditionName}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {isOwner && (
-                        <div className="flex shrink-0 items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => handleEdit(post)}
-                            className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700 cursor-pointer"
-                          >
-                            <IconPencil size={14} />
-                            <span className="ml-1.5 hidden sm:inline">Edit</span>
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setDeleteConfirmPostId(post.id)}
-                            disabled={deletingId === post.id}
-                            className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-medium text-red-700 transition-all hover:border-red-400 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-                          >
-                            <IconTrash size={14} />
-                            <span className="ml-1.5 hidden sm:inline">{deletingId === post.id ? 'Deleting...' : 'Delete'}</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="px-5 py-5 sm:px-6">
-                    <p className="whitespace-pre-wrap text-sm leading-7 text-gray-700">{post.content}</p>
-
-                    <div className="mt-5 flex items-center gap-3 border-t border-green-100 pt-4">
-                      <button
-                        type="button"
-                        onClick={() => void handleLikeToggle(post)}
-                        disabled={!profile || likingPostIds.includes(post.id)}
-                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer ${
-                          post.viewerHasLiked
-                            ? 'border-green-300 bg-green-50 text-green-800'
-                            : 'border-gray-200 bg-white text-gray-600 hover:border-green-300 hover:text-green-700'
-                        }`}
-                      >
-                        <IconHeart size={15} className={post.viewerHasLiked ? 'text-green-700' : 'text-gray-500'} />
-                        <span>{post.viewerHasLiked ? 'Liked' : 'Like'}</span>
-                      </button>
-                      <span className="text-xs font-medium text-gray-500">
-                        {post.likeCount} {post.likeCount === 1 ? 'like' : 'likes'}
-                      </span>
-                    </div>
-                  </div>
-                </article>
-              )
-            })
+            posts.map((post) => (
+              <CommunityPostCard
+                key={post.id}
+                post={post}
+                now={now}
+                profileId={profile?.id}
+                canLike={Boolean(profile)}
+                isLiking={likingPostIds.includes(post.id)}
+                onLikeToggle={handleLikeToggle}
+                onEdit={handleEdit}
+                onDelete={setDeleteConfirmPostId}
+                deletingId={deletingId}
+                detailHref={`/community/${post.id}`}
+              />
+            ))
           )}
         </section>
       </div>
@@ -1046,13 +688,4 @@ const Community = () => {
 }
 
 export default Community
-
-
-
-
-
-
-
-
-
 
