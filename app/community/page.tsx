@@ -525,7 +525,7 @@ const Community = () => {
         )}
 
         <aside className="xl:sticky xl:top-24">
-          <div className="overflow-hidden rounded-[28px] border border-green-200 bg-white shadow-sm">
+          <div className="flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden rounded-[28px] border border-green-200 bg-white shadow-sm xl:max-h-[calc(100dvh-7rem)]">
             <div className="border-b border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 px-5 py-5">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-green-700">Create Post</p>
               <h1 className="mt-2 text-2xl font-semibold tracking-tight text-gray-900">Community Feed</h1>
@@ -534,7 +534,7 @@ const Community = () => {
               </p>
             </div>
 
-            <div className="p-5">
+            <div className="min-h-0 overflow-y-auto p-5">
               <div className="flex items-start gap-3">
                 <Avatar
                   size="5"
@@ -600,7 +600,7 @@ const Community = () => {
                   <textarea
                     value={content}
                     maxLength={POST_CHAR_LIMIT}
-                    rows={7}
+                    rows={6}
                     placeholder="What's been going on with your condition lately?"
                     className="w-full resize-none rounded-3xl border border-green-200 bg-green-50/60 px-4 py-3 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100"
                     onChange={(e) => setContent(e.target.value)}
