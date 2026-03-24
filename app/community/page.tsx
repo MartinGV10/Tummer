@@ -1,8 +1,8 @@
-'use client'
+﻿'use client'
 
 import React, { useEffect, useMemo, useState, useTransition } from 'react'
 import { Avatar } from '@radix-ui/themes'
-import { IconMessageCircle, IconPencil, IconSend2, IconTrash, IconX } from '@tabler/icons-react'
+import { IconChevronDown, IconMessageCircle, IconPencil, IconSend2, IconTrash, IconX } from '@tabler/icons-react'
 import type { PostgrestError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabaseClient'
 import { useProfile } from '@/src/context/ProfileContext'
@@ -304,6 +304,7 @@ const Community = () => {
   const [error, setError] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [deleteConfirmPostId, setDeleteConfirmPostId] = useState<string | null>(null)
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [now, setNow] = useState(() => Date.now())
@@ -521,9 +522,6 @@ const Community = () => {
   }
 
   const handleDelete = async (postId: string) => {
-    const confirmed = window.confirm('Delete this post?')
-    if (!confirmed) return
-
     setDeletingId(postId)
     setError(null)
 
@@ -546,6 +544,7 @@ const Community = () => {
 
     setPosts((prev) => prev.filter((post) => post.id !== postId))
     setDeletingId(null)
+    setDeleteConfirmPostId(null)
   }
 
   const emptyState = useMemo(
@@ -564,127 +563,177 @@ const Community = () => {
   )
 
   return (
-    <div className="p-4 md:p-6 mt-3 md:mt-5 flex flex-col items-center">
-      <div className="w-full max-w-6xl flex flex-col gap-5">
-        <div className="rounded-3xl border border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 p-5 shadow-sm">
-          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h1 className="text-3xl font-medium tracking-tight text-gray-900">Community</h1>
-              <p className="mt-1 text-sm text-gray-600">
-                Share advice, ask questions, post updates, and connect with others managing similar conditions.
-              </p>
+    <div className="min-h-screen bg-gray-100 px-4 py-6 md:px-6 md:py-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 xl:grid xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
+      {deleteConfirmPostId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/40 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-green-200 bg-white shadow-xl">
+            <div className="border-b border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 px-5 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">Confirm Delete</p>
+              <h2 className="mt-1 text-lg font-semibold text-gray-900">Delete this post?</h2>
             </div>
-            <div className="rounded-2xl border border-green-200 bg-white/80 px-4 py-3 text-sm text-gray-700 shadow-sm">
-              Realtime feed enabled
+            <div className="space-y-4 px-5 py-5">
+              <p className="text-sm leading-6 text-gray-600">
+                This will permanently remove the post from the community feed.
+              </p>
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setDeleteConfirmPostId(null)}
+                  disabled={Boolean(deletingId)}
+                  className="inline-flex items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleDelete(deleteConfirmPostId)}
+                  disabled={Boolean(deletingId)}
+                  className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition-all hover:border-red-400 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {deletingId === deleteConfirmPostId ? 'Deleting...' : 'Delete Post'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
+      )}
+        <aside className="xl:sticky xl:top-24">
+          <div className="overflow-hidden rounded-[28px] border border-green-200 bg-white shadow-sm">
+            <div className="border-b border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 px-5 py-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-green-700">Create Post</p>
+              <h1 className="mt-2 text-2xl font-semibold tracking-tight text-gray-900">Community Feed</h1>
+              <p className="mt-2 text-sm leading-6 text-gray-600">
+                Ask questions, share tips, and post quick updates while the feed stays front and center.
+              </p>
+            </div>
 
-        <section className="rounded-3xl border border-green-200 bg-white p-5 shadow-sm">
-          <div className="flex items-start gap-4">
-            <Avatar
-              size="5"
-              radius="full"
-              src={getAvatarUrl(profile?.avatar_url)}
-              fallback={profile?.first_name?.[0] ?? 'U'}
-              color="green"
-              className="border border-green-200"
-            />
-            <div className="flex-1 space-y-4">
-              <div>
-                <p className="text-sm font-semibold text-gray-900">
-                  {profile ? `${profile.first_name} ${profile.last_name}`.trim() || profile.username : 'Community member'}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {editingPostId ? 'Editing your post' : 'Share an update with the community'}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Post Type</label>
-                  <select
-                    className="w-full rounded-xl border border-green-200 bg-white px-3 py-2.5 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100"
-                    value={selectedPostType}
-                    onChange={(e) => setSelectedPostType(e.target.value)}
-                  >
-                    <option value="">Choose a post type</option>
-                    {POST_TYPE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">Condition Tag</label>
-                  <select
-                    className="w-full rounded-xl border border-green-200 bg-white px-3 py-2.5 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100"
-                    value={composerConditionId}
-                    onChange={(e) => setSelectedConditionId(e.target.value || null)}
-                  >
-                    <option value="">No condition tag</option>
-                    {conditions.map((condition) => (
-                      <option key={condition.id} value={condition.id}>{condition.name}</option>
-                    ))}
-                  </select>
+            <div className="p-5">
+              <div className="flex items-start gap-3">
+                <Avatar
+                  size="5"
+                  radius="full"
+                  src={getAvatarUrl(profile?.avatar_url)}
+                  fallback={profile?.first_name?.[0] ?? 'U'}
+                  color="green"
+                  className="border border-green-200"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-gray-900">
+                    {profile ? `${profile.first_name} ${profile.last_name}`.trim() || profile.username : 'Community member'}
+                  </p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {editingPostId ? 'Editing your post' : 'Post to the community'}
+                  </p>
                 </div>
               </div>
 
-              <textarea
-                value={content}
-                maxLength={POST_CHAR_LIMIT}
-                rows={5}
-                placeholder="What's been going on with your condition lately?"
-                className="w-full resize-none rounded-2xl border border-green-200 bg-green-50/40 px-4 py-3 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100"
-                onChange={(e) => setContent(e.target.value)}
-              />
+              <div className="mt-5 space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Post Type</label>
+                  <div className="relative">
+                    <select
+                      className="w-full appearance-none rounded-2xl border border-green-200 bg-white px-3 py-3 pr-10 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                      value={selectedPostType}
+                      onChange={(e) => setSelectedPostType(e.target.value)}
+                    >
+                      <option value="">Choose a post type</option>
+                      {POST_TYPE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
+                    <IconChevronDown
+                      size={16}
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                    />
+                  </div>
+                </div>
 
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="text-xs">
-                  <span className={remainingChars < 50 ? 'font-medium text-amber-700' : 'text-gray-500'}>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Condition Tag</label>
+                  <div className="relative">
+                    <select
+                      className="w-full appearance-none rounded-2xl border border-green-200 bg-white px-3 py-3 pr-10 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                      value={composerConditionId}
+                      onChange={(e) => setSelectedConditionId(e.target.value || null)}
+                    >
+                      <option value="">No condition tag</option>
+                      {conditions.map((condition) => (
+                        <option key={condition.id} value={condition.id}>{condition.name}</option>
+                      ))}
+                    </select>
+                    <IconChevronDown
+                      size={16}
+                      className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-500">Message</label>
+                  <textarea
+                    value={content}
+                    maxLength={POST_CHAR_LIMIT}
+                    rows={7}
+                    placeholder="What's been going on with your condition lately?"
+                    className="w-full resize-none rounded-[24px] border border-green-200 bg-green-50/60 px-4 py-3 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                    onChange={(e) => setContent(e.target.value)}
+                  />
+                </div>
+
+                <div className="rounded-2xl border border-green-100 bg-green-50/70 px-3 py-2.5 text-xs text-gray-600">
+                  <span className={remainingChars < 50 ? 'font-semibold text-amber-700' : 'font-medium text-green-800'}>
                     {remainingChars} characters remaining
                   </span>
-                  {submitError && <p className="mt-1 text-red-600">{submitError}</p>}
+                  {submitError && <p className="mt-1.5 text-red-600">{submitError}</p>}
                 </div>
 
-                <div className="flex flex-col gap-2 sm:flex-row">
+                <div className="flex flex-col gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePost}
+                    disabled={!canSubmit || isPending}
+                    className="inline-flex w-full items-center justify-center rounded-2xl bg-green-600 px-4 py-3 text-sm font-medium text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-green-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <IconSend2 size={16} />
+                    <span className="ml-2">{isPending ? (editingPostId ? 'Saving...' : 'Posting...') : editingPostId ? 'Save Post' : 'Post to Feed'}</span>
+                  </button>
                   {editingPostId && (
                     <button
                       type="button"
                       onClick={resetComposer}
-                      className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700"
+                      className="inline-flex w-full items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700"
                     >
                       <IconX size={16} />
                       <span className="ml-2">Cancel Edit</span>
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={handlePost}
-                    disabled={!canSubmit || isPending}
-                    className="inline-flex items-center justify-center rounded-xl bg-green-600 px-4 py-2.5 text-sm font-medium text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-green-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    <IconSend2 size={16} />
-                    <span className="ml-2">{isPending ? (editingPostId ? 'Saving...' : 'Posting...') : editingPostId ? 'Save Post' : 'Post'}</span>
-                  </button>
                 </div>
               </div>
             </div>
           </div>
-        </section>
+        </aside>
 
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Posts</h2>
-            <p className="text-xs text-gray-500">Newest first</p>
+        <section className="min-w-0 space-y-4">
+          <div className="flex flex-col gap-3 rounded-[28px] border border-green-100 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">Live Discussion</p>
+              <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-900">Newest posts first</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                The feed is the focus here, with quick context and actions on every post.
+              </p>
+            </div>
+            <div className="rounded-2xl border border-green-100 bg-green-50/80 px-4 py-3 text-sm text-gray-700 shadow-sm">
+              {posts.length} {posts.length === 1 ? 'post' : 'posts'} in the feed
+            </div>
           </div>
 
           {loading ? (
-            <div className="rounded-2xl border border-green-200 bg-white p-6 shadow-sm">
+            <div className="overflow-hidden rounded-[28px] border border-green-200 bg-white p-6 shadow-sm">
               <p className="text-sm text-gray-600">Loading community feed...</p>
             </div>
           ) : error ? (
-            <div className="rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
+            <div className="overflow-hidden rounded-[28px] border border-red-200 bg-white p-6 shadow-sm">
               <p className="text-sm text-red-600">{error}</p>
             </div>
           ) : posts.length === 0 ? (
@@ -697,70 +746,69 @@ const Community = () => {
               return (
                 <article
                   key={post.id}
-                  className="rounded-2xl border border-green-200 bg-white p-5 shadow-sm transition-all hover:shadow-md"
+                  className="overflow-hidden rounded-[28px] border border-green-200 bg-white shadow-sm transition-all hover:border-green-300 hover:shadow-md"
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-start gap-3">
-                      <Avatar
-                        size="4"
-                        radius="full"
-                        src={getAvatarUrl(post.author?.avatar_url)}
-                        fallback={(post.author?.username?.[0] ?? 'U').toUpperCase()}
-                        color="green"
-                        className="border border-green-200"
-                      />
-                      <div>
-                        <p className="text-sm font-semibold text-gray-900">{displayName(post.author)}</p>
-                        <div className="mt-0.5 flex items-center gap-2 text-xs text-gray-500">
-                          <span>@{post.author?.username?.trim() || 'member'}</span>
-                          <span>&bull;</span>
-                          <span>{relativeTime(post.created_at, now)}</span>
-                          {post.updated_at !== post.created_at && (
-                            <>
-                              <span>&bull;</span>
-                              <span>Edited</span>
-                            </>
-                          )}
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {postType && (
-                            <span className="rounded-full bg-green-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-green-800">
-                              {postType}
-                            </span>
-                          )}
-                          {post.conditionName && (
-                            <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-700">
-                              {post.conditionName}
-                            </span>
-                          )}
+                  <div className="border-b border-green-100 px-5 py-4 sm:px-6">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex min-w-0 items-start gap-3">
+                        <Avatar
+                          size="4"
+                          radius="full"
+                          src={getAvatarUrl(post.author?.avatar_url)}
+                          fallback={(post.author?.username?.[0] ?? 'U').toUpperCase()}
+                          color="green"
+                          className="border border-green-200"
+                        />
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <p className="text-sm font-semibold text-gray-900">{displayName(post.author)}</p>
+                            <span className="text-xs text-gray-400">@{post.author?.username?.trim() || 'member'}</span>
+                            <span className="hidden text-xs text-gray-300 sm:inline">•</span>
+                            <span className="text-xs text-gray-500">{relativeTime(post.created_at, now)}</span>
+                            {post.updated_at !== post.created_at && <span className="text-xs text-gray-400">Edited</span>}
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {postType && (
+                              <span className="rounded-full bg-green-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-green-800">
+                                {postType}
+                              </span>
+                            )}
+                            {post.conditionName && (
+                              <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-700">
+                                {post.conditionName}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {isOwner && (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleEdit(post)}
-                          className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700"
-                        >
-                          <IconPencil size={14} />
-                          <span className="ml-1.5">Edit</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(post.id)}
-                          disabled={deletingId === post.id}
-                          className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-medium text-red-700 transition-all hover:border-red-400 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <IconTrash size={14} />
-                          <span className="ml-1.5">{deletingId === post.id ? 'Deleting...' : 'Delete'}</span>
-                        </button>
-                      </div>
-                    )}
+                      {isOwner && (
+                        <div className="flex shrink-0 items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleEdit(post)}
+                            className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700"
+                          >
+                            <IconPencil size={14} />
+                            <span className="ml-1.5 hidden sm:inline">Edit</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeleteConfirmPostId(post.id)}
+                            disabled={deletingId === post.id}
+                            className="inline-flex items-center justify-center rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-medium text-red-700 transition-all hover:border-red-400 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <IconTrash size={14} />
+                            <span className="ml-1.5 hidden sm:inline">{deletingId === post.id ? 'Deleting...' : 'Delete'}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-gray-700">{post.content}</p>
+                  <div className="px-5 py-5 sm:px-6">
+                    <p className="whitespace-pre-wrap text-sm leading-7 text-gray-700">{post.content}</p>
+                  </div>
                 </article>
               )
             })
@@ -772,3 +820,5 @@ const Community = () => {
 }
 
 export default Community
+
+
