@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState, useTransition } from 'react'
 import { Avatar } from '@radix-ui/themes'
-import { IconChevronDown, IconMessageCircle, IconPencil, IconSend2, IconTrash, IconX } from '@tabler/icons-react'
+import { IconChevronDown, IconHeart, IconMessageCircle, IconPencil, IconSend2, IconTrash, IconX } from '@tabler/icons-react'
 import type { PostgrestError } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabaseClient'
 import { useProfile } from '@/src/context/ProfileContext'
@@ -23,6 +23,13 @@ type ProfileSummary = {
   avatar_url: string | null
 }
 
+type CommunityPostLikeRow = {
+  id: string
+  post_id: string
+  user_id: string
+  created_at: string
+}
+
 type Condition = {
   id: string
   name: string
@@ -31,8 +38,9 @@ type Condition = {
 type CommunityPost = CommunityPostRow & {
   author: ProfileSummary | null
   conditionName: string | null
+  likeCount: number
+  viewerHasLiked: boolean
 }
-
 const POST_CHAR_LIMIT = 500
 const POST_TYPE_OPTIONS = [
   { value: 'question', label: 'Question' },
@@ -153,6 +161,56 @@ function mergePosts(
     ...post,
     author: profiles[post.user_id] ?? null,
     conditionName: post.tag ? conditions[String(post.tag)] ?? post.tag : null,
+    likeCount: 0,
+    viewerHasLiked: false,
+  }))
+}
+
+async function fetchLikesForPosts(
+  postIds: string[],
+  viewerId: string | null | undefined
+): Promise<{ counts: Record<string, number>; viewerLikedPostIds: Set<string> }> {
+  if (postIds.length === 0) {
+    return { counts: {}, viewerLikedPostIds: new Set<string>() }
+  }
+
+  const uniqueIds = [...new Set(postIds.filter(Boolean))]
+  if (uniqueIds.length === 0) {
+    return { counts: {}, viewerLikedPostIds: new Set<string>() }
+  }
+
+  const { data, error } = await supabase
+    .from('community_post_likes')
+    .select('id, post_id, user_id, created_at')
+    .in('post_id', uniqueIds)
+
+  if (error) {
+    console.warn('Error loading likes for community posts:', error)
+    return { counts: {}, viewerLikedPostIds: new Set<string>() }
+  }
+
+  const counts: Record<string, number> = {}
+  const viewerLikedPostIds = new Set<string>()
+
+  for (const like of (data ?? []) as CommunityPostLikeRow[]) {
+    counts[like.post_id] = (counts[like.post_id] ?? 0) + 1
+    if (viewerId && like.user_id === viewerId) {
+      viewerLikedPostIds.add(like.post_id)
+    }
+  }
+
+  return { counts, viewerLikedPostIds }
+}
+
+function applyLikesToPosts(
+  posts: CommunityPost[],
+  counts: Record<string, number>,
+  viewerLikedPostIds: Set<string>
+): CommunityPost[] {
+  return posts.map((post) => ({
+    ...post,
+    likeCount: counts[post.id] ?? 0,
+    viewerHasLiked: viewerLikedPostIds.has(post.id),
   }))
 }
 
@@ -306,6 +364,7 @@ const Community = () => {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteConfirmPostId, setDeleteConfirmPostId] = useState<string | null>(null)
   const [editingPostId, setEditingPostId] = useState<string | null>(null)
+  const [likingPostIds, setLikingPostIds] = useState<string[]>([])
   const [isPending, startTransition] = useTransition()
   const [now, setNow] = useState(() => Date.now())
 
@@ -346,12 +405,13 @@ const Community = () => {
 
       const userIds = [...new Set(rows.map((post) => post.user_id).filter(Boolean))]
       const profileMap = await fetchProfilesByIds(userIds)
+      const { counts, viewerLikedPostIds } = await fetchLikesForPosts(rows.map((post) => post.id), profile?.id)
 
       if (!active) return
 
       setConditions(conditionList)
       setConditionMap(conditionsLookup)
-      setPosts(mergePosts(rows, profileMap, conditionsLookup))
+      setPosts(applyLikesToPosts(mergePosts(rows, profileMap, conditionsLookup), counts, viewerLikedPostIds))
       setLoading(false)
     }
 
@@ -431,7 +491,7 @@ const Community = () => {
           const mergedPost = mergePosts([updatedPost], profileMap, conditionMap)[0]
 
           setPosts((prev) =>
-            prev.map((post) => (post.id === mergedPost.id ? mergedPost : post))
+            prev.map((post) => (post.id === mergedPost.id ? { ...mergedPost, likeCount: post.likeCount, viewerHasLiked: post.viewerHasLiked } : post))
           )
         }
       )
@@ -447,12 +507,52 @@ const Community = () => {
           setPosts((prev) => prev.filter((post) => post.id !== deletedPost.id))
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'community_post_likes',
+        },
+        (payload) => {
+          const like = payload.new as CommunityPostLikeRow
+          setPosts((prev) => prev.map((post) => {
+            if (post.id !== like.post_id) return post
+            if (like.user_id === profile?.id && post.viewerHasLiked) return post
+            return {
+              ...post,
+              likeCount: post.likeCount + 1,
+              viewerHasLiked: like.user_id === profile?.id ? true : post.viewerHasLiked,
+            }
+          }))
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'community_post_likes',
+        },
+        (payload) => {
+          const like = payload.old as CommunityPostLikeRow
+          setPosts((prev) => prev.map((post) => {
+            if (post.id !== like.post_id) return post
+            if (like.user_id === profile?.id && !post.viewerHasLiked) return post
+            return {
+              ...post,
+              likeCount: Math.max(0, post.likeCount - 1),
+              viewerHasLiked: like.user_id === profile?.id ? false : post.viewerHasLiked,
+            }
+          }))
+        }
+      )
       .subscribe()
 
     return () => {
       void supabase.removeChannel(channel)
     }
-  }, [conditionMap])
+  }, [conditionMap, profile?.id])
 
   const remainingChars = POST_CHAR_LIMIT - content.length
   const composerConditionId = selectedConditionId ?? profile?.condition_id ?? ''
@@ -468,6 +568,66 @@ const Community = () => {
     setSelectedConditionId(null)
     setEditingPostId(null)
     setSubmitError(null)
+  }
+
+  const handleLikeToggle = async (post: CommunityPost) => {
+    if (!profile) return
+
+    const wasLiked = post.viewerHasLiked
+
+    setLikingPostIds((prev) => (prev.includes(post.id) ? prev : [...prev, post.id]))
+    setError(null)
+    setPosts((prev) => prev.map((item) => {
+      if (item.id !== post.id) return item
+      return {
+        ...item,
+        viewerHasLiked: !wasLiked,
+        likeCount: Math.max(0, item.likeCount + (wasLiked ? -1 : 1)),
+      }
+    }))
+
+    if (wasLiked) {
+      const { error } = await supabase
+        .from('community_post_likes')
+        .delete()
+        .eq('post_id', post.id)
+        .eq('user_id', profile.id)
+
+      if (error) {
+        console.error('Error removing community post like:', error)
+        setPosts((prev) => prev.map((item) => {
+          if (item.id !== post.id) return item
+          return {
+            ...item,
+            viewerHasLiked: true,
+            likeCount: item.likeCount + 1,
+          }
+        }))
+        setError('Could not remove your like right now.')
+      }
+    } else {
+      const { error } = await supabase
+        .from('community_post_likes')
+        .insert({
+          post_id: post.id,
+          user_id: profile.id,
+        })
+
+      if (error) {
+        console.error('Error adding community post like:', error)
+        setPosts((prev) => prev.map((item) => {
+          if (item.id !== post.id) return item
+          return {
+            ...item,
+            viewerHasLiked: false,
+            likeCount: Math.max(0, item.likeCount - 1),
+          }
+        }))
+        setError('Could not like that post right now.')
+      }
+    }
+
+    setLikingPostIds((prev) => prev.filter((postId) => postId !== post.id))
   }
 
   const handlePost = () => {
@@ -676,7 +836,7 @@ const Community = () => {
                     maxLength={POST_CHAR_LIMIT}
                     rows={7}
                     placeholder="What's been going on with your condition lately?"
-                    className="w-full resize-none rounded-[24px] border border-green-200 bg-green-50/60 px-4 py-3 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                    className="w-full resize-none rounded-3xl border border-green-200 bg-green-50/60 px-4 py-3 text-sm text-gray-800 shadow-sm outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-100"
                     onChange={(e) => setContent(e.target.value)}
                   />
                 </div>
@@ -808,6 +968,25 @@ const Community = () => {
 
                   <div className="px-5 py-5 sm:px-6">
                     <p className="whitespace-pre-wrap text-sm leading-7 text-gray-700">{post.content}</p>
+
+                    <div className="mt-5 flex items-center gap-3 border-t border-green-100 pt-4">
+                      <button
+                        type="button"
+                        onClick={() => void handleLikeToggle(post)}
+                        disabled={!profile || likingPostIds.includes(post.id)}
+                        className={`inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition-all disabled:cursor-not-allowed disabled:opacity-60 ${
+                          post.viewerHasLiked
+                            ? 'border-green-300 bg-green-50 text-green-800'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-green-300 hover:text-green-700'
+                        }`}
+                      >
+                        <IconHeart size={15} className={post.viewerHasLiked ? 'text-green-700' : 'text-gray-500'} />
+                        <span>{post.viewerHasLiked ? 'Liked' : 'Like'}</span>
+                      </button>
+                      <span className="text-xs font-medium text-gray-500">
+                        {post.likeCount} {post.likeCount === 1 ? 'like' : 'likes'}
+                      </span>
+                    </div>
                   </div>
                 </article>
               )
@@ -820,5 +999,10 @@ const Community = () => {
 }
 
 export default Community
+
+
+
+
+
 
 
