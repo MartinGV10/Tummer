@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { Avatar } from '@radix-ui/themes'
-import { IconBrain, IconChartBar, IconMoodSadDizzy, IconPoo, IconSoup, IconTrendingUp, IconUsers, IconUsersGroup } from '@tabler/icons-react'
+import { IconBrain, IconChartBar, IconMoodSadDizzy, IconPoo, IconSoup, IconTrendingUp, IconUsersGroup } from '@tabler/icons-react'
 import Link from 'next/link'
 import { useProfile } from '@/src/context/ProfileContext'
 import useMeals from '@/src/context/TrackedMealsContext'
@@ -44,6 +44,12 @@ type SimpleSymptom = {
 type DashboardAiData = {
   insight: string
   alert: string
+}
+
+type DashboardMealEntry = {
+  date: string
+  meal_name: string
+  items: string[]
 }
 
 type TriggerFoodRow = {
@@ -374,6 +380,24 @@ export default function DashboardPage() {
     return out
   }, [last7Days, meals, triggerFoods])
 
+  const weeklyMealEntries = useMemo(() => {
+    const allowedDays = new Set(last7Days.map((d) => d.key))
+    const out: DashboardMealEntry[] = []
+
+    for (const meal of meals) {
+      const dateKey = toDateKey(new Date(meal.eaten_at))
+      if (!allowedDays.has(dateKey)) continue
+
+      out.push({
+        date: dateKey,
+        meal_name: meal.meal_name,
+        items: meal.meal_items.map((item) => item.food_name).filter(Boolean),
+      })
+    }
+
+    return out
+  }, [last7Days, meals])
+
   const aiPayload = useMemo(
     () => ({
       today: todayKey,
@@ -436,12 +460,13 @@ export default function DashboardPage() {
       }),
       triggerFoods,
       weeklyTriggerMeals,
+      weeklyMealEntries,
       profileContext: {
         condition: profileCondition,
         dietaryRestriction: profileRestriction,
       },
     }),
-    [todayKey, mealsToday, bowelsToday, symptomsToday, daysSinceSymptom, last7Days, mealsByDay, bowelsByDay, symptomsByDay, weeklyDailyLogs, weeklyBowels, weeklySymptoms, logIdToDate, triggerFoods, weeklyTriggerMeals, profileCondition, profileRestriction, showPeriodDay]
+    [todayKey, mealsToday, bowelsToday, symptomsToday, daysSinceSymptom, last7Days, mealsByDay, bowelsByDay, symptomsByDay, weeklyDailyLogs, weeklyBowels, weeklySymptoms, logIdToDate, triggerFoods, weeklyTriggerMeals, weeklyMealEntries, profileCondition, profileRestriction, showPeriodDay]
   )
 
   const hasAiInputs = useMemo(

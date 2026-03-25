@@ -49,6 +49,11 @@ export type DashboardAiPayload = {
     meal_name: string
     trigger_food: string
   }>
+  weeklyMealEntries?: Array<{
+    date: string
+    meal_name: string
+    items: string[]
+  }>
   profileContext?: {
     condition?: string | null
     dietaryRestriction?: string | null
@@ -69,6 +74,23 @@ type DashboardAiStructured = {
   likely_drivers: string[]
   watch_next: string
   confidence: 'low' | 'medium' | 'high'
+}
+
+type ConditionFoodFlag = {
+  date: string
+  meal_name: string
+  matched_food: string
+  reason: string
+  alternative: string
+}
+
+type ConditionFoodRule = {
+  conditionTokens: string[]
+  riskyFoods: Array<{
+    keywords: string[]
+    reason: string
+    alternative: string
+  }>
 }
 
 const client = new OpenAI({
@@ -246,6 +268,123 @@ function truncateTextList(values: Array<string | null | undefined>, limit = 4, m
     .slice(0, limit)
 }
 
+function normalizeFoodText(value: string | null | undefined): string {
+  return (value ?? '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const CONDITION_FOOD_RULES: ConditionFoodRule[] = [
+  {
+    conditionTokens: ['ibs', 'irritable bowel'],
+    riskyFoods: [
+      { keywords: ['onion', 'garlic'], reason: 'high-FODMAP aromatics often worsen IBS symptoms', alternative: 'herb-seasoned low-FODMAP meals' },
+      { keywords: ['bean', 'beans', 'lentil', 'lentils'], reason: 'legumes can be harder to tolerate with IBS', alternative: 'eggs, tofu, or lean protein' },
+      { keywords: ['milk', 'ice cream'], reason: 'dairy can aggravate IBS for some people', alternative: 'lactose-free or lower-FODMAP options' },
+      { keywords: ['fried', 'greasy', 'pizza', 'burger'], reason: 'high-fat meals can aggravate IBS symptoms', alternative: 'baked or grilled lighter meals' },
+    ],
+  },
+  {
+    conditionTokens: ['crohn', 'ibd', 'ulcerative colitis', 'colitis'],
+    riskyFoods: [
+      { keywords: ['fried', 'greasy', 'buffalo'], reason: 'high-fat or greasy foods are often harder to tolerate during flares', alternative: 'baked, grilled, or softer meals' },
+      { keywords: ['popcorn', 'nuts', 'seeds'], reason: 'rougher foods can be difficult during active gut symptoms', alternative: 'softer lower-residue foods' },
+      { keywords: ['spicy', 'hot cheeto', 'takis'], reason: 'spicy foods may irritate an inflamed gut', alternative: 'milder seasoned meals' },
+    ],
+  },
+  {
+    conditionTokens: ['gerd', 'reflux', 'heartburn'],
+    riskyFoods: [
+      { keywords: ['coffee', 'espresso'], reason: 'coffee can worsen reflux symptoms', alternative: 'lower-acid or non-caffeinated drinks' },
+      { keywords: ['tomato', 'marinara', 'salsa'], reason: 'acidic tomato foods can trigger reflux', alternative: 'less acidic sauces or bowls' },
+      { keywords: ['fried', 'greasy', 'pepperoni', 'sausage'], reason: 'high-fat foods can worsen reflux', alternative: 'leaner baked or grilled meals' },
+      { keywords: ['chocolate', 'peppermint'], reason: 'common reflux triggers showed up in meals', alternative: 'blander snack options' },
+    ],
+  },
+  {
+    conditionTokens: ['celiac', 'gluten'],
+    riskyFoods: [
+      { keywords: ['bread', 'pasta', 'pizza', 'bagel', 'flour tortilla', 'soy sauce'], reason: 'these foods may contain gluten and are usually best avoided with celiac disease', alternative: 'certified gluten-free alternatives' },
+    ],
+  },
+  {
+    conditionTokens: ['lactose'],
+    riskyFoods: [
+      { keywords: ['milk', 'ice cream', 'alfredo', 'cream sauce'], reason: 'higher-lactose foods can worsen lactose intolerance symptoms', alternative: 'lactose-free dairy or lower-lactose swaps' },
+    ],
+  },
+]
+
+const GENERIC_HEALTHIER_SWAPS: Array<{
+  keywords: string[]
+  reason: string
+  alternative: string
+}> = [
+  { keywords: ['soda', 'cola', 'energy drink'], reason: 'sugary drinks showed up in meals', alternative: 'water, tea, or lower-sugar drinks' },
+  { keywords: ['fried', 'fries', 'fried chicken'], reason: 'fried foods were logged recently', alternative: 'baked or grilled options' },
+  { keywords: ['candy', 'donut', 'cake'], reason: 'high-sugar foods were logged recently', alternative: 'fruit or a simpler lower-sugar snack' },
+  { keywords: ['pizza', 'burger', 'fast food'], reason: 'more processed higher-fat meals were logged recently', alternative: 'balanced meals with lean protein and simpler sides' },
+]
+
+function findConditionFoodFlags(payload: DashboardAiPayload): ConditionFoodFlag[] {
+  const condition = normalizeFoodText(payload.profileContext?.condition)
+  const entries = payload.weeklyMealEntries ?? []
+  const matchedRule = CONDITION_FOOD_RULES.find((rule) => rule.conditionTokens.some((token) => condition.includes(token)))
+
+  if (!matchedRule) return []
+
+  const flags: ConditionFoodFlag[] = []
+
+  for (const entry of entries) {
+    const foodsToScan = [entry.meal_name, ...(entry.items ?? [])].map(normalizeFoodText).filter(Boolean)
+
+    for (const riskyFood of matchedRule.riskyFoods) {
+      const keyword = riskyFood.keywords.find((token) => foodsToScan.some((food) => food.includes(token)))
+      if (!keyword) continue
+
+      flags.push({
+        date: entry.date,
+        meal_name: entry.meal_name,
+        matched_food: keyword,
+        reason: riskyFood.reason,
+        alternative: riskyFood.alternative,
+      })
+      break
+    }
+  }
+
+  return flags
+}
+
+function findGenericHealthySwapFlags(payload: DashboardAiPayload): ConditionFoodFlag[] {
+  if (normalizeFoodText(payload.profileContext?.condition)) return []
+
+  const entries = payload.weeklyMealEntries ?? []
+  const flags: ConditionFoodFlag[] = []
+
+  for (const entry of entries) {
+    const foodsToScan = [entry.meal_name, ...(entry.items ?? [])].map(normalizeFoodText).filter(Boolean)
+
+    for (const riskyFood of GENERIC_HEALTHIER_SWAPS) {
+      const keyword = riskyFood.keywords.find((token) => foodsToScan.some((food) => food.includes(token)))
+      if (!keyword) continue
+
+      flags.push({
+        date: entry.date,
+        meal_name: entry.meal_name,
+        matched_food: keyword,
+        reason: riskyFood.reason,
+        alternative: riskyFood.alternative,
+      })
+      break
+    }
+  }
+
+  return flags
+}
+
 function buildAnalytics(payload: DashboardAiPayload) {
   const factors = payload.weeklyFactors ?? []
   const bowelDetails = payload.weeklyBowelDetails ?? []
@@ -253,6 +392,7 @@ function buildAnalytics(payload: DashboardAiPayload) {
   const dailyNotes = payload.weeklyDailyNotes ?? []
   const triggerFoods = payload.triggerFoods ?? []
   const weeklyTriggerMeals = payload.weeklyTriggerMeals ?? []
+  const weeklyMealEntries = payload.weeklyMealEntries ?? []
   const profileContext = payload.profileContext ?? {}
   const symptomValues = payload.weeklySymptoms.map((x) => x.value)
   const bowelValues = payload.weeklyBowels.map((x) => x.value)
@@ -411,6 +551,10 @@ function buildAnalytics(payload: DashboardAiPayload) {
   const mealRecentChange = changeBetweenWindows(payload.weeklyMeals, 3)
   const recentTriggerMeals = weeklyTriggerMeals.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
   const latestTriggerMeal = recentTriggerMeals[0] ?? null
+  const conditionFoodFlags = findConditionFoodFlags(payload)
+  const genericFoodFlags = findGenericHealthySwapFlags(payload)
+  const recentConditionFoodFlags = conditionFoodFlags.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
+  const recentGenericFoodFlags = genericFoodFlags.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5)
 
   return {
     today: {
@@ -476,6 +620,16 @@ function buildAnalytics(payload: DashboardAiPayload) {
       recent: recentTriggerMeals,
       latest: latestTriggerMeal,
     },
+    conditionFoodFlags: {
+      total: conditionFoodFlags.length,
+      recent: recentConditionFoodFlags,
+      latest: recentConditionFoodFlags[0] ?? null,
+    },
+    genericFoodFlags: {
+      total: genericFoodFlags.length,
+      recent: recentGenericFoodFlags,
+      latest: recentGenericFoodFlags[0] ?? null,
+    },
     patternHints: [
       stressVsSymptoms,
       sleepVsSymptoms,
@@ -494,6 +648,7 @@ function buildAnalytics(payload: DashboardAiPayload) {
       weeklyDailyNotes: payload.weeklyDailyNotes ?? [],
       triggerFoods,
       weeklyTriggerMeals,
+      weeklyMealEntries,
       profileContext,
     },
   }
@@ -558,6 +713,14 @@ function buildFallbackDrivers(analytics: ReturnType<typeof buildAnalytics>): str
     drivers.push('meals matched your trigger-food list this week')
   }
 
+  if (analytics.conditionFoodFlags.total > 0) {
+    drivers.push('recent meals included foods that are often less well tolerated for your condition')
+  }
+
+  if (analytics.genericFoodFlags.total > 0) {
+    drivers.push('recent meals included foods that could be swapped for gentler or healthier options')
+  }
+
   if (analytics.factors.flareDaysWithSymptoms >= 2) {
     drivers.push('symptoms are clustering on flare days')
   }
@@ -579,7 +742,15 @@ function fallbackInsight(payload: DashboardAiPayload): DashboardAiResult {
   let insight = ''
   let alert = ''
 
-  if (analytics.triggerMeals.latest) {
+  if (analytics.conditionFoodFlags.latest) {
+    const recent = analytics.conditionFoodFlags.latest
+    const daysAgo = Math.max(0, daysBetweenDateKeys(recent.date, payload.today))
+    insight = `Recent meals included "${recent.matched_food}" in "${recent.meal_name}" ${daysAgo} day${daysAgo === 1 ? '' : 's'} ago. That food is often best limited with ${analytics.profileContext.condition ?? 'this condition'} because ${recent.reason}.`
+  } else if (analytics.genericFoodFlags.latest) {
+    const recent = analytics.genericFoodFlags.latest
+    const daysAgo = Math.max(0, daysBetweenDateKeys(recent.date, payload.today))
+    insight = `Recent meals included "${recent.matched_food}" in "${recent.meal_name}" ${daysAgo} day${daysAgo === 1 ? '' : 's'} ago. ${recent.reason}, so it may be worth trying ${recent.alternative}.`
+  } else if (analytics.triggerMeals.latest) {
     const recent = analytics.triggerMeals.latest
     const daysAgo = Math.max(0, daysBetweenDateKeys(recent.date, payload.today))
     insight = `Recent trigger-food exposure: "${recent.meal_name}" matched trigger food "${recent.trigger_food}" ${daysAgo} day${daysAgo === 1 ? '' : 's'} ago. Compare symptom and bowel changes around that day.`
@@ -602,7 +773,13 @@ function fallbackInsight(payload: DashboardAiPayload): DashboardAiResult {
     }
   }
 
-  if (analytics.triggerMeals.latest && payload.symptomsToday > 0) {
+  if (analytics.conditionFoodFlags.latest) {
+    const recent = analytics.conditionFoodFlags.latest
+    alert = `Because "${recent.matched_food}" is often less well tolerated for ${analytics.profileContext.condition ?? 'your condition'}, try ${recent.alternative} next and watch the next 48 to 72 hours.`
+  } else if (analytics.genericFoodFlags.latest) {
+    const recent = analytics.genericFoodFlags.latest
+    alert = `Try swapping "${recent.matched_food}" for ${recent.alternative} in the next few days and compare how meals and symptoms feel.`
+  } else if (analytics.triggerMeals.latest && payload.symptomsToday > 0) {
     const recent = analytics.triggerMeals.latest
     alert = `Because "${recent.trigger_food}" was recently logged, try reducing or avoiding it for 2 to 3 days and monitor whether symptoms and bowel activity improve.`
   } else if (payload.symptomsToday >= 2 && analytics.weekly.symptomBowelOverlapDays >= 1) {
@@ -675,7 +852,7 @@ function buildFinalInsight({
   }
 
   const normalizedInsight = trimNicely(insight, MAX_INSIGHT_LEN - titleBudget)
-  let finalInsight = `${titlePrefix}${normalizedInsight}`.trim()
+  const finalInsight = `${titlePrefix}${normalizedInsight}`.trim()
 
   if (likelyDrivers.length === 0) {
     return finalInsight
@@ -736,6 +913,8 @@ function buildSystemPrompt(): string {
     '- Keep `alert` at or under 260 characters.',
     '',
     'If trigger-food exposures are present, mention them directly by food name and timing when relevant.',
+    'If recent meals include foods that are generally poor fits for the user condition, mention those even when the user has not manually labeled them as triggers.',
+    'If no condition is specified, look for generally less healthy meal patterns and suggest a simple healthier alternative.',
     'When a likely trigger-food exposure appears close to symptom activity, provide a concrete next-step suggestion (for example, reduce or avoid temporarily and monitor 48 to 72 hour response).',
     'If condition or dietary restriction context is provided, incorporate it directly into interpretation and recommendations.',
     'If bowel details or notes show blood, mucus, Bristol pattern shifts, urgency changes, or useful context, factor them into the output explicitly.',
@@ -760,6 +939,8 @@ function buildUserPrompt(): string {
     '- tell the user what to watch next',
     '- keep the insight concise (max 460 chars) and alert concise (max 260 chars)',
     '- use bowel-entry details like Bristol type, blood, mucus, urgency, and note text when they strengthen the conclusion',
+    '- consider condition-specific foods that are commonly best limited even if the user never marked them as triggers',
+    '- if no condition is set, prefer healthier alternative suggestions when meals skew fried, sugary, highly processed, or more irritating',
     '',
     'Avoid generic lines like "keep tracking patterns" unless the data is too weak for a stronger conclusion.',
     'Use the derived analytics first. Use the raw daily arrays only to confirm the pattern.',
@@ -806,6 +987,8 @@ export async function generateDashboardInsights(
                 profileContext: analytics.profileContext,
                 triggerFoods: analytics.triggerFoods,
                 triggerMeals: analytics.triggerMeals,
+                conditionFoodFlags: analytics.conditionFoodFlags,
+                genericFoodFlags: analytics.genericFoodFlags,
                 patternHints: analytics.patternHints,
                 raw: analytics.raw,
               })}`,
