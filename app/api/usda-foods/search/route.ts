@@ -56,6 +56,14 @@ function buildServingDescription(food: UsdaSearchApiFood): string | null {
   return null
 }
 
+function getServingAmount(food: UsdaSearchApiFood): number | null {
+  return typeof food.servingSize === 'number' && Number.isFinite(food.servingSize) ? food.servingSize : null
+}
+
+function getServingUnit(food: UsdaSearchApiFood): string | null {
+  return food.servingSizeUnit?.trim() || null
+}
+
 export async function GET(req: NextRequest) {
   const apiKey = getApiKey()
   if (!apiKey) {
@@ -97,6 +105,8 @@ export async function GET(req: NextRequest) {
     description: food.description?.trim() || 'Unnamed food',
     brandName: food.brandName?.trim() || null,
     servingDescription: buildServingDescription(food),
+    servingAmount: getServingAmount(food),
+    servingUnit: getServingUnit(food),
     dataType: food.dataType?.trim() || null,
     calories: getNutrientValue(food, [1008], ['energy']),
     protein: getNutrientValue(food, [1003], ['protein']),

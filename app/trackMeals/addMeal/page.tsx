@@ -20,11 +20,16 @@ const INPUT_CLASS =
 type SelectedMealFood = {
   id?: string
   localId: string
+  isCustom: boolean
   food_name: string
   brand_name: string | null
   serving_description: string | null
-  quantity: number
-  unit: string | null
+  amount: number
+  measurementMode: 'standard_serving' | 'grams_ml'
+  baseAmount: number
+  baseUnit: string
+  metricReferenceAmount: number | null
+  metricReferenceUnit: 'g' | 'ml' | null
   fdc_id: number | null
   data_type: string | null
   baseCalories: number
@@ -41,6 +46,8 @@ type UsdaFoodSearchResult = {
   description: string
   brandName: string | null
   servingDescription: string | null
+  servingAmount: number | null
+  servingUnit: string | null
   dataType: string | null
   calories: number
   protein: number
@@ -67,24 +74,110 @@ function roundNutrition(value: number): number {
   return Math.round(value * 100) / 100
 }
 
+function normalizeMeasurementUnit(value: string | null | undefined): string {
+  return (value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+}
+
+function toMetricUnit(value: string | null | undefined): 'g' | 'ml' | null {
+  const normalized = normalizeMeasurementUnit(value)
+  if (['g', 'gram', 'grams'].includes(normalized)) return 'g'
+  if (['ml', 'milliliter', 'milliliters'].includes(normalized)) return 'ml'
+  return null
+}
+
+function parseServingReference(servingDescription: string | null | undefined): { amount: number; unit: string } | null {
+  if (!servingDescription) return null
+
+  const match = servingDescription.trim().match(/^(\d+(?:\.\d+)?)\s+(.+)$/)
+  if (!match) return null
+
+  const amount = Number(match[1])
+  const unit = match[2]?.trim()
+  if (!Number.isFinite(amount) || amount <= 0 || !unit) return null
+
+  return { amount, unit }
+}
+
+function getMacroMultiplier(food: SelectedMealFood): number {
+  if (!Number.isFinite(food.amount) || food.amount <= 0) return 1
+  if (food.measurementMode === 'grams_ml') {
+    const metricReferenceAmount = food.metricReferenceAmount
+
+    if (
+      typeof metricReferenceAmount !== 'number' ||
+      !Number.isFinite(metricReferenceAmount) ||
+      !food.metricReferenceUnit ||
+      metricReferenceAmount <= 0
+    ) {
+      return food.amount
+    }
+
+    return food.amount / metricReferenceAmount
+  }
+
+  if (!Number.isFinite(food.baseAmount) || food.baseAmount <= 0) return food.amount
+  return food.amount / food.baseAmount
+}
+
+function getAmountRatio(amount: number, baseAmount: number): number {
+  if (!Number.isFinite(amount) || amount <= 0) return 1
+  if (!Number.isFinite(baseAmount) || baseAmount <= 0) return amount
+  return amount / baseAmount
+}
+
+function formatFoodAmount(amount: number, unit: string) {
+  const formattedAmount = formatMacroValue(amount, amount % 1 === 0 ? 0 : 2)
+  return unit.trim() ? `${formattedAmount} ${unit.trim()}` : formattedAmount
+}
+
+function getMeasurementOptions(food: SelectedMealFood): Array<{ value: SelectedMealFood['measurementMode']; label: string }> {
+  const options: Array<{ value: SelectedMealFood['measurementMode']; label: string }> = [
+    { value: 'standard_serving', label: 'Serving size' },
+  ]
+
+  if (food.metricReferenceUnit) {
+    options.unshift({
+      value: 'grams_ml',
+      label: food.metricReferenceUnit === 'g' ? 'Grams' : 'mL',
+    })
+  }
+
+  return options
+}
+
+function getSelectedUnitLabel(food: SelectedMealFood): string {
+  if (food.measurementMode === 'grams_ml' && food.metricReferenceUnit) {
+    return food.metricReferenceUnit
+  }
+
+  return 'standard serving'
+}
+
 function serializeSelectedFoods(foods: SelectedMealFood[]): MealItemInput[] {
-  return foods.map((food, index) => ({
-    position: index,
-    food_name: food.food_name,
-    brand_name: food.brand_name,
-    serving_description: food.serving_description,
-    quantity: food.quantity,
-    unit: food.unit,
-    fdc_id: food.fdc_id,
-    data_type: food.data_type,
-    calories: roundNutrition(food.baseCalories * food.quantity),
-    protein_g: roundNutrition(food.baseProteinG * food.quantity),
-    carbs_g: roundNutrition(food.baseCarbsG * food.quantity),
-    fat_g: roundNutrition(food.baseFatG * food.quantity),
-    fiber_g: roundNutrition(food.baseFiberG * food.quantity),
-    sugar_g: roundNutrition(food.baseSugarG * food.quantity),
-    sodium_mg: roundNutrition(food.baseSodiumMg * food.quantity),
-  }))
+  return foods.map((food, index) => {
+    const multiplier = getMacroMultiplier(food)
+
+    return {
+      position: index,
+      food_name: food.food_name,
+      brand_name: food.brand_name,
+      serving_description: food.serving_description,
+      quantity: roundNutrition(food.amount),
+      unit: getSelectedUnitLabel(food),
+      fdc_id: food.fdc_id,
+      data_type: food.data_type,
+      calories: roundNutrition(food.baseCalories * multiplier),
+      protein_g: roundNutrition(food.baseProteinG * multiplier),
+      carbs_g: roundNutrition(food.baseCarbsG * multiplier),
+      fat_g: roundNutrition(food.baseFatG * multiplier),
+      fiber_g: roundNutrition(food.baseFiberG * multiplier),
+      sugar_g: roundNutrition(food.baseSugarG * multiplier),
+      sodium_mg: roundNutrition(food.baseSodiumMg * multiplier),
+    }
+  })
 }
 
 function selectedFoodFromStoredItem(item: {
@@ -104,35 +197,61 @@ function selectedFoodFromStoredItem(item: {
   sugar_g: number
   sodium_mg: number
 }): SelectedMealFood {
-  const quantity = item.quantity > 0 ? item.quantity : 1
+  const parsedServing = parseServingReference(item.serving_description)
+  const amount = item.quantity > 0 ? item.quantity : parsedServing?.amount ?? 1
+  const baseAmount = parsedServing?.amount ?? amount
+  const baseUnit = parsedServing?.unit ?? item.unit ?? 'serving'
+  const metricReferenceUnit = toMetricUnit(parsedServing?.unit ?? item.unit)
+  const metricReferenceAmount = metricReferenceUnit ? (parsedServing?.amount ?? amount) : null
+  const measurementMode = item.unit === 'standard serving' ? 'standard_serving' : metricReferenceUnit ? 'grams_ml' : 'standard_serving'
+  const ratio = measurementMode === 'grams_ml'
+    ? getAmountRatio(amount, metricReferenceAmount ?? amount)
+    : getAmountRatio(amount, baseAmount)
+
   return {
     id: item.id,
     localId: item.id || createLocalId(),
+    isCustom: item.data_type === 'Custom',
     food_name: item.food_name,
     brand_name: item.brand_name,
     serving_description: item.serving_description,
-    quantity,
-    unit: item.unit,
+    amount,
+    measurementMode,
+    baseAmount,
+    baseUnit,
+    metricReferenceAmount,
+    metricReferenceUnit,
     fdc_id: item.fdc_id,
     data_type: item.data_type,
-    baseCalories: item.calories / quantity,
-    baseProteinG: item.protein_g / quantity,
-    baseCarbsG: item.carbs_g / quantity,
-    baseFatG: item.fat_g / quantity,
-    baseFiberG: item.fiber_g / quantity,
-    baseSugarG: item.sugar_g / quantity,
-    baseSodiumMg: item.sodium_mg / quantity,
+    baseCalories: item.calories / ratio,
+    baseProteinG: item.protein_g / ratio,
+    baseCarbsG: item.carbs_g / ratio,
+    baseFatG: item.fat_g / ratio,
+    baseFiberG: item.fiber_g / ratio,
+    baseSugarG: item.sugar_g / ratio,
+    baseSodiumMg: item.sodium_mg / ratio,
   }
 }
 
 function selectedFoodFromSearchResult(food: UsdaFoodSearchResult): SelectedMealFood {
+  const parsedServing = parseServingReference(food.servingDescription)
+  const baseAmount = food.servingAmount ?? parsedServing?.amount ?? 1
+  const baseUnit = food.servingUnit ?? parsedServing?.unit ?? 'serving'
+  const metricReferenceUnit = toMetricUnit(food.servingUnit ?? parsedServing?.unit)
+  const metricReferenceAmount = metricReferenceUnit ? baseAmount : null
+
   return {
     localId: createLocalId(),
+    isCustom: false,
     food_name: food.description,
     brand_name: food.brandName,
     serving_description: food.servingDescription,
-    quantity: 1,
-    unit: food.servingDescription ?? null,
+    amount: baseAmount,
+    measurementMode: metricReferenceUnit ? 'grams_ml' : 'standard_serving',
+    baseAmount,
+    baseUnit,
+    metricReferenceAmount,
+    metricReferenceUnit,
     fdc_id: food.fdcId,
     data_type: food.dataType,
     baseCalories: food.calories,
@@ -142,6 +261,33 @@ function selectedFoodFromSearchResult(food: UsdaFoodSearchResult): SelectedMealF
     baseFiberG: food.fiber,
     baseSugarG: food.sugar,
     baseSodiumMg: food.sodium,
+  }
+}
+
+function createCustomFood(name: string): SelectedMealFood {
+  const trimmedName = name.trim()
+
+  return {
+    localId: createLocalId(),
+    isCustom: true,
+    food_name: trimmedName || 'Custom food',
+    brand_name: null,
+    serving_description: null,
+    amount: 1,
+    measurementMode: 'standard_serving',
+    baseAmount: 1,
+    baseUnit: 'serving',
+    metricReferenceAmount: null,
+    metricReferenceUnit: null,
+    fdc_id: null,
+    data_type: 'Custom',
+    baseCalories: 0,
+    baseProteinG: 0,
+    baseCarbsG: 0,
+    baseFatG: 0,
+    baseFiberG: 0,
+    baseSugarG: 0,
+    baseSodiumMg: 0,
   }
 }
 
@@ -175,7 +321,7 @@ export default function AddMealPage() {
         meal_name: meal.meal_name.trim().toLowerCase(),
         meal_type: meal.meal_type,
         notes: meal.notes?.trim().toLowerCase() ?? '',
-        items: meal.meal_items.map((item) => `${item.food_name.trim().toLowerCase()}-${item.quantity}`).join('|'),
+        items: meal.meal_items.map((item) => `${item.food_name.trim().toLowerCase()}-${item.quantity}-${item.unit ?? ''}`).join('|'),
       })
 
       if (seen.has(key)) return false
@@ -268,13 +414,56 @@ export default function AddMealPage() {
 
   const addFoodToMeal = (food: UsdaFoodSearchResult) => {
     setSelectedFoods((prev) => [...prev, selectedFoodFromSearchResult(food)])
+    setFoodQuery('')
+    setFoodResults([])
+    setFoodSearchError(null)
   }
 
-  const updateSelectedFoodQuantity = (localId: string, quantity: number) => {
+  const addCustomFoodToMeal = (name: string) => {
+    setSelectedFoods((prev) => [...prev, createCustomFood(name)])
+    setFoodQuery('')
+    setFoodResults([])
+    setFoodSearchError(null)
+  }
+
+  const updateSelectedFoodAmount = (localId: string, amount: number) => {
     setSelectedFoods((prev) =>
       prev.map((food) =>
         food.localId === localId
-          ? { ...food, quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1 }
+          ? { ...food, amount: Number.isFinite(amount) && amount > 0 ? amount : food.baseAmount || 1 }
+          : food
+      )
+    )
+  }
+
+  const updateSelectedFoodMeasurementMode = (localId: string, measurementMode: SelectedMealFood['measurementMode']) => {
+    setSelectedFoods((prev) =>
+      prev.map((food) =>
+        food.localId === localId
+          ? {
+              ...food,
+              measurementMode,
+              amount: measurementMode === 'grams_ml'
+                ? food.metricReferenceAmount ?? food.amount
+                : 1,
+            }
+          : food
+      )
+    )
+  }
+
+  const updateCustomFoodNutrition = (
+    localId: string,
+    field: 'baseCalories' | 'baseProteinG' | 'baseCarbsG' | 'baseFatG',
+    value: number
+  ) => {
+    setSelectedFoods((prev) =>
+      prev.map((food) =>
+        food.localId === localId
+          ? {
+              ...food,
+              [field]: Number.isFinite(value) && value >= 0 ? value : 0,
+            }
           : food
       )
     )
@@ -501,6 +690,15 @@ export default function AddMealPage() {
                   />
                 </div>
                 <p className="text-xs text-gray-500">Search starts after 2 characters and uses your USDA API key on the server.</p>
+                {foodQuery.trim().length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => addCustomFoodToMeal(foodQuery)}
+                    className="inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700 cursor-pointer"
+                  >
+                    Add custom food: {foodQuery.trim()}
+                  </button>
+                )}
               </div>
 
               {(isSearchingFoods || foodSearchError || foodResults.length > 0 || deferredFoodQuery.trim().length >= 2) && (
@@ -554,25 +752,105 @@ export default function AddMealPage() {
                             <p className="text-xs text-gray-600">
                               {[food.brand_name, food.serving_description, food.data_type].filter(Boolean).join(' | ') || 'Meal item'}
                             </p>
-                            <p className="text-xs text-gray-600">
-                              {formatMacroValue(itemTotals.calories, 0)} cal | {formatMacroValue(itemTotals.protein_g)}g protein | {formatMacroValue(itemTotals.carbs_g)}g carbs | {formatMacroValue(itemTotals.fat_g)}g fat
+                            <p className="text-xs text-gray-500">
+                              Base serving: {formatFoodAmount(food.baseAmount, food.baseUnit)}
                             </p>
+                            <p className="text-xs text-gray-600">
+                              {formatMacroValue(itemTotals.calories ?? 0, 0)} cal | {formatMacroValue(itemTotals.protein_g ?? 0)}g protein | {formatMacroValue(itemTotals.carbs_g ?? 0)}g carbs | {formatMacroValue(itemTotals.fat_g ?? 0)}g fat
+                            </p>
+                            {food.isCustom && (
+                              <div className="grid grid-cols-2 gap-2 pt-1 sm:grid-cols-4">
+                                <div className="space-y-1">
+                                  <label className="text-[11px] font-medium text-gray-700" htmlFor={`custom-calories-${food.localId}`}>
+                                    Calories
+                                  </label>
+                                  <input
+                                    id={`custom-calories-${food.localId}`}
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={food.baseCalories}
+                                    onChange={(e) => updateCustomFoodNutrition(food.localId, 'baseCalories', Number(e.target.value))}
+                                    className="w-full rounded-xl border border-green-300 bg-white px-2.5 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[11px] font-medium text-gray-700" htmlFor={`custom-protein-${food.localId}`}>
+                                    Protein
+                                  </label>
+                                  <input
+                                    id={`custom-protein-${food.localId}`}
+                                    type="number"
+                                    min="0"
+                                    step="0.1"
+                                    value={food.baseProteinG}
+                                    onChange={(e) => updateCustomFoodNutrition(food.localId, 'baseProteinG', Number(e.target.value))}
+                                    className="w-full rounded-xl border border-green-300 bg-white px-2.5 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[11px] font-medium text-gray-700" htmlFor={`custom-carbs-${food.localId}`}>
+                                    Carbs
+                                  </label>
+                                  <input
+                                    id={`custom-carbs-${food.localId}`}
+                                    type="number"
+                                    min="0"
+                                    step="0.1"
+                                    value={food.baseCarbsG}
+                                    onChange={(e) => updateCustomFoodNutrition(food.localId, 'baseCarbsG', Number(e.target.value))}
+                                    className="w-full rounded-xl border border-green-300 bg-white px-2.5 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[11px] font-medium text-gray-700" htmlFor={`custom-fat-${food.localId}`}>
+                                    Fat
+                                  </label>
+                                  <input
+                                    id={`custom-fat-${food.localId}`}
+                                    type="number"
+                                    min="0"
+                                    step="0.1"
+                                    value={food.baseFatG}
+                                    onChange={(e) => updateCustomFoodNutrition(food.localId, 'baseFatG', Number(e.target.value))}
+                                    className="w-full rounded-xl border border-green-300 bg-white px-2.5 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100"
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </div>
 
-                          <div className="flex items-end gap-3">
+                          <div className="flex flex-wrap items-end gap-3">
                             <div className="space-y-1">
-                              <label className="text-xs font-medium text-gray-700" htmlFor={`quantity-${food.localId}`}>
-                                Quantity
+                              <label className="text-xs font-medium text-gray-700" htmlFor={`amount-${food.localId}`}>
+                                Amount
                               </label>
                               <input
-                                id={`quantity-${food.localId}`}
+                                id={`amount-${food.localId}`}
                                 type="number"
                                 min="0.25"
                                 step="0.25"
-                                value={food.quantity}
-                                onChange={(e) => updateSelectedFoodQuantity(food.localId, Number(e.target.value))}
+                                value={food.amount}
+                                onChange={(e) => updateSelectedFoodAmount(food.localId, Number(e.target.value))}
                                 className="w-24 rounded-xl border border-green-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100"
                               />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-xs font-medium text-gray-700" htmlFor={`unit-${food.localId}`}>
+                                Unit
+                              </label>
+                              <select
+                                id={`unit-${food.localId}`}
+                                value={food.measurementMode}
+                                onChange={(e) => updateSelectedFoodMeasurementMode(food.localId, e.target.value as SelectedMealFood['measurementMode'])}
+                                className="w-28 rounded-xl border border-green-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-green-500 focus:outline-none focus:ring-2 focus:ring-green-100"
+                              >
+                                {getMeasurementOptions(food).map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                             <button
                               type="button"

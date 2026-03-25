@@ -7,6 +7,11 @@ import { Calendar } from '../components/ui/calendar'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { useRouter } from 'next/navigation'
 
+function formatLoggedAmount(quantity: number, unit: string | null) {
+  const amount = formatMacroValue(quantity, quantity % 1 === 0 ? 0 : 2)
+  return unit?.trim() ? `${amount} ${unit.trim()}` : amount
+}
+
 export default function TrackMeals() {
   const { meals, loading, error, deleteMeal } = useMeals()
   const [date, setDate] = useState<Date | undefined>(new Date())
@@ -201,12 +206,12 @@ export default function TrackMeals() {
                               <div className="flex flex-wrap gap-2">
                                 {meal.meal_items.map((item) => (
                                   <span key={item.id} className="rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs text-green-900">
-                                    {item.quantity}x {item.food_name}
+                                    {formatLoggedAmount(item.quantity, item.unit)} {item.food_name}
                                   </span>
                                 ))}
                               </div>
                               <p className="text-xs text-gray-600">
-                                {formatMacroValue(totals.calories, 0)} cal | {formatMacroValue(totals.protein_g)}g protein | {formatMacroValue(totals.carbs_g)}g carbs | {formatMacroValue(totals.fat_g)}g fat
+                                {formatMacroValue(totals.calories, 0)} cal
                               </p>
                             </div>
                           )}
