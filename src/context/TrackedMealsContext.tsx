@@ -1,6 +1,7 @@
 'use client'
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { type MealItem, type MealItemInput, normalizeMealItemInput } from '@/src/shared/meals'
 
 export type Meal = {
   id: string
@@ -11,6 +12,7 @@ export type Meal = {
   notes: string | null
   created_at: string
   updated_at: string
+  meal_items: MealItem[]
 }
 
 type MealsContextType = {
@@ -24,15 +26,69 @@ type MealsContextType = {
     meal_type?: string
     eaten_at?: string | Date
     notes?: string | null
+    meal_items?: MealItemInput[]
   }) => Promise<Meal | null>
   updateMeal: (
     mealId: string,
-    data: Partial<Pick<Meal, 'meal_name' | 'meal_type' | 'eaten_at' | 'notes'>>
+    data: Partial<Pick<Meal, 'meal_name' | 'meal_type' | 'eaten_at' | 'notes'>> & {
+      meal_items?: MealItemInput[]
+    }
   ) => Promise<void>
   deleteMeal: (mealId: string) => Promise<void>
 }
 
 const MealsContext = createContext<MealsContextType | null>(null)
+const MEAL_SELECT = '*, meal_items(*)'
+
+type RawMealItem = Partial<MealItem> & {
+  position?: number | string | null
+  quantity?: number | string | null
+  fdc_id?: number | string | null
+  calories?: number | string | null
+  protein_g?: number | string | null
+  carbs_g?: number | string | null
+  fat_g?: number | string | null
+  fiber_g?: number | string | null
+  sugar_g?: number | string | null
+  sodium_mg?: number | string | null
+}
+
+type RawMeal = Omit<Meal, 'meal_items'> & {
+  meal_items?: RawMealItem[] | null
+}
+
+type MealInsertPayload = {
+  user_id: string
+  meal_name: string
+  meal_type: string
+  notes: string | null
+  eaten_at?: string
+}
+
+type MealUpdatePayload = Partial<Pick<Meal, 'meal_name' | 'meal_type' | 'eaten_at' | 'notes'>>
+
+function normalizeMeal(raw: RawMeal): Meal {
+  const items = Array.isArray(raw?.meal_items) ? raw.meal_items : []
+
+  return {
+    ...raw,
+    meal_items: items
+      .map((item) => ({
+        ...item,
+        position: Number(item?.position ?? 0),
+        quantity: Number(item?.quantity ?? 1),
+        fdc_id: item?.fdc_id == null ? null : Number(item.fdc_id),
+        calories: Number(item?.calories ?? 0),
+        protein_g: Number(item?.protein_g ?? 0),
+        carbs_g: Number(item?.carbs_g ?? 0),
+        fat_g: Number(item?.fat_g ?? 0),
+        fiber_g: Number(item?.fiber_g ?? 0),
+        sugar_g: Number(item?.sugar_g ?? 0),
+        sodium_mg: Number(item?.sodium_mg ?? 0),
+      }))
+      .sort((a: MealItem, b: MealItem) => a.position - b.position),
+  }
+}
 
 export function MealProvider({ children }: { children: React.ReactNode }) {
 	const [meals, setMeals] = useState<Meal[]>([])
@@ -65,9 +121,10 @@ export function MealProvider({ children }: { children: React.ReactNode }) {
 
 			const { data, error } = await supabase
 				.from('meals')
-				.select('*')
+				.select(MEAL_SELECT)
 				.eq('user_id', session.user.id)
 				.order('eaten_at', { ascending: false })
+        .order('position', { foreignTable: 'meal_items', ascending: true })
 
 			if (error) {
 				setError(error.message)
@@ -75,7 +132,7 @@ export function MealProvider({ children }: { children: React.ReactNode }) {
 				return
 			}
 
-			setMeals(data || [])
+			setMeals((data || []).map(normalizeMeal))
 		} catch (err) {
 			console.error('Unexpected error loading meals:', err)
 			setError('An unexpected error occurred while loading your meals')
@@ -118,20 +175,59 @@ export function MealProvider({ children }: { children: React.ReactNode }) {
 
 		const { data, error } = await supabase
 			.from('meals')
-			.select('*')
+			.select(MEAL_SELECT)
 			.eq('user_id', userId)
 			.order('eaten_at', { ascending: false })
+      .order('position', { foreignTable: 'meal_items', ascending: true })
 
 		if (error) {
 			setError(error.message)
 			return
 		}
 
-		setMeals(data || [])
+		setMeals((data || []).map(normalizeMeal))
 	}, [userId])
 
+  const fetchMealById = useCallback(async (mealId: string, currentUserId: string) => {
+    const { data, error } = await supabase
+      .from('meals')
+      .select(MEAL_SELECT)
+      .eq('id', mealId)
+      .eq('user_id', currentUserId)
+      .order('position', { foreignTable: 'meal_items', ascending: true })
+      .single()
+
+    if (error) throw error
+    return normalizeMeal(data)
+  }, [])
+
+  const persistMealItems = useCallback(async (mealId: string, currentUserId: string, items: MealItemInput[] | undefined) => {
+    const normalizedItems = (items ?? [])
+      .map((item, index) => normalizeMealItemInput(item, index))
+      .filter((item) => item.food_name !== '')
+
+    const { error: deleteError } = await supabase
+      .from('meal_items')
+      .delete()
+      .eq('meal_id', mealId)
+      .eq('user_id', currentUserId)
+
+    if (deleteError) throw deleteError
+    if (normalizedItems.length === 0) return
+
+    const rows = normalizedItems.map((item, index) => ({
+      meal_id: mealId,
+      user_id: currentUserId,
+      ...item,
+      position: index,
+    }))
+
+    const { error: insertError } = await supabase.from('meal_items').insert(rows)
+    if (insertError) throw insertError
+  }, [])
+
 	const addMeal: MealsContextType['addMeal'] = useCallback(
-		async ({ meal_name, meal_type = 'other', eaten_at, notes = null }) => {
+		async ({ meal_name, meal_type = 'other', eaten_at, notes = null, meal_items = [] }) => {
 			if (!userId) {
 				setError('User not authenticated')
 				return null
@@ -139,7 +235,7 @@ export function MealProvider({ children }: { children: React.ReactNode }) {
 
 			setError(null)
 
-			const payload: any = {
+			const payload: MealInsertPayload = {
 				user_id: userId,
 				meal_name,
 				meal_type,
@@ -164,9 +260,17 @@ export function MealProvider({ children }: { children: React.ReactNode }) {
 				return null
 			}
 
-			setMeals((prev) => [data as Meal, ...prev])
-			return data as Meal
-		}, [userId]
+      try {
+        await persistMealItems(data.id, userId, meal_items)
+        const hydratedMeal = await fetchMealById(data.id, userId)
+        setMeals((prev) => [hydratedMeal, ...prev.filter((meal) => meal.id !== hydratedMeal.id)])
+        return hydratedMeal
+      } catch (itemError) {
+        const message = itemError instanceof Error ? itemError.message : 'Failed to save meal items'
+        setError(message)
+        return normalizeMeal({ ...data, meal_items: [] })
+      }
+		}, [fetchMealById, persistMealItems, userId]
 	)
 
   const updateMeal: MealsContextType['updateMeal'] = useCallback(
@@ -178,7 +282,9 @@ export function MealProvider({ children }: { children: React.ReactNode }) {
 
       setError(null)
 
-      const payload: any = { ...data }
+      const payload: MealUpdatePayload = { ...data }
+      const mealItems = Array.isArray(payload.meal_items) ? payload.meal_items : undefined
+      delete payload.meal_items
 
       if (payload.eaten_at instanceof Date) {
         payload.eaten_at = payload.eaten_at.toISOString()
@@ -195,13 +301,16 @@ export function MealProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
-      setMeals((prev) =>
-        prev.map((meal) =>
-          meal.id === mealId ? { ...meal, ...payload } : meal
-        )
-      )
+      try {
+        await persistMealItems(mealId, userId, mealItems)
+        const hydratedMeal = await fetchMealById(mealId, userId)
+        setMeals((prev) => prev.map((meal) => (meal.id === mealId ? hydratedMeal : meal)))
+      } catch (itemError) {
+        const message = itemError instanceof Error ? itemError.message : 'Failed to update meal items'
+        setError(message)
+      }
     },
-    [userId]
+    [fetchMealById, persistMealItems, userId]
   )
 
   const deleteMeal: MealsContextType['deleteMeal'] = useCallback(
@@ -249,7 +358,7 @@ export function MealProvider({ children }: { children: React.ReactNode }) {
 
 const useMeals = () => {
   const ctx = useContext(MealsContext)
-  if (!ctx) throw new Error('useLoggged must be used within FoodProvider')
+  if (!ctx) throw new Error('useMeals must be used within MealProvider')
   return ctx
 }
 

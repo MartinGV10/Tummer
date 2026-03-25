@@ -7,6 +7,7 @@ import { useProfile } from '@/src/context/ProfileContext'
 import useMeals from '@/src/context/TrackedMealsContext'
 import { supabase } from '@/lib/supabaseClient'
 import { DASHBOARD_AI_EMPTY_STATE, hasDashboardInsightInputs } from '@/src/shared/dashboardAi'
+import { getMealSearchText } from '@/src/shared/meals'
 import { normalizeGenderValue } from '@/src/shared/profileGender'
 
 type DailyLogRow = {
@@ -361,7 +362,7 @@ export default function DashboardPage() {
     for (const meal of meals) {
       const dateKey = toDateKey(new Date(meal.eaten_at))
       if (!allowedDays.has(dateKey)) continue
-      const match = findTriggerMatch(meal.meal_name, triggerFoods)
+      const match = findTriggerMatch(getMealSearchText(meal.meal_name, meal.meal_items), triggerFoods)
       if (!match) continue
       out.push({
         date: dateKey,

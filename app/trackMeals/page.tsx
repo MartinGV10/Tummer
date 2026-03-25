@@ -2,15 +2,15 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import useMeals, { type Meal } from '@/src/context/TrackedMealsContext'
+import { formatMacroValue, sumMealMacros } from '@/src/shared/meals'
 import { Calendar } from '../components/ui/calendar'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { useRouter } from 'next/navigation'
 
-const TrackMeals = () => {
+export default function TrackMeals() {
   const { meals, loading, error, deleteMeal } = useMeals()
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [open, setOpen] = useState(false)
-
   const router = useRouter()
 
   const mealSections: Array<{ key: Meal['meal_type']; label: string }> = [
@@ -38,12 +38,10 @@ const TrackMeals = () => {
     )
   }
 
-  const getMealsByType = (mealType: Meal['meal_type']) => {
-    return meals.filter((meal) => meal.meal_type === mealType && isSameDay(meal.eaten_at, date))
-  }
+  const getMealsByType = (mealType: Meal['meal_type']) => meals.filter((meal) => meal.meal_type === mealType && isSameDay(meal.eaten_at, date))
 
-  const onPickDate = (d: Date | undefined) => {
-    setDate(d)
+  const onPickDate = (pickedDate: Date | undefined) => {
+    setDate(pickedDate)
     setOpen(false)
   }
 
@@ -54,11 +52,11 @@ const TrackMeals = () => {
   }
 
   return (
-    <div className="p-4 md:p-6 mt-3 md:mt-5 flex flex-col items-center">
-      <div className="w-full max-w-6xl flex flex-col md:flex-row md:items-center md:justify-between mb-4 border-b-2 border-b-green-600/70 pb-4 gap-3">
+    <div className="mt-3 flex flex-col items-center p-4 md:mt-5 md:p-6">
+      <div className="mb-4 flex w-full max-w-6xl flex-col gap-3 border-b-2 border-b-green-600/70 pb-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-medium tracking-tight">Track Meals</h1>
-          <p className="text-sm text-gray-600 mt-1">View meals by day and quickly update entries.</p>
+          <p className="mt-1 text-sm text-gray-600">View meals by day and quickly update entries.</p>
         </div>
         <Link
           href="/trackMeals/addMeal"
@@ -68,12 +66,12 @@ const TrackMeals = () => {
         </Link>
       </div>
 
-      <div className="w-full max-w-6xl mb-6 rounded-2xl border border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 p-3 md:p-4 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+      <div className="mb-6 w-full max-w-6xl rounded-2xl border border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 p-3 shadow-sm md:p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="relative flex items-center gap-2">
             <button
               type="button"
-              className="px-3 py-2 rounded-xl font-medium transition-all cursor-pointer border text-sm bg-white text-gray-700 border-gray-200 hover:border-green-400 hover:text-green-700"
+              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700 cursor-pointer"
               onClick={() => changeDateBy(-1)}
               aria-label="Previous day"
             >
@@ -82,17 +80,15 @@ const TrackMeals = () => {
 
             <button
               type="button"
-              onClick={() => setOpen((v) => !v)}
-              className="px-3 py-2 rounded-xl font-medium transition-all cursor-pointer border text-sm bg-green-600 text-white border-green-600 shadow-md min-w-48"
+              onClick={() => setOpen((value) => !value)}
+              className="min-w-48 rounded-xl border border-green-600 bg-green-600 px-3 py-2 text-sm font-medium text-white shadow-md transition-all cursor-pointer"
             >
-              {date
-                ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                : 'Pick a date'}
+              {date ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Pick a date'}
             </button>
 
             <button
               type="button"
-              className="px-3 py-2 rounded-xl font-medium transition-all cursor-pointer border text-sm bg-white text-gray-700 border-gray-200 hover:border-green-400 hover:text-green-700"
+              className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700 cursor-pointer"
               onClick={() => changeDateBy(1)}
               aria-label="Next day"
             >
@@ -101,7 +97,7 @@ const TrackMeals = () => {
 
             {open && (
               <div
-                className="absolute top-full left-1/2 z-50 mt-2 -translate-x-1/2 rounded-2xl bg-white/95 p-3 shadow-xl ring-1 ring-black/5 backdrop-blur"
+                className="absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 rounded-2xl bg-white/95 p-3 shadow-xl ring-1 ring-black/5 backdrop-blur"
                 style={
                   {
                     '--primary': 'oklch(0.62 0.16 145)',
@@ -131,20 +127,18 @@ const TrackMeals = () => {
           <p className="text-sm text-gray-700">
             Showing meals for{' '}
             <span className="font-medium">
-              {date
-                ? date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-                : 'all dates'}
+              {date ? date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'all dates'}
             </span>
           </p>
         </div>
       </div>
 
       {loading ? (
-        <div className="w-full max-w-6xl bg-white p-6 rounded-2xl shadow-md border border-green-200">
+        <div className="w-full max-w-6xl rounded-2xl border border-green-200 bg-white p-6 shadow-md">
           <p className="text-sm text-gray-600">Loading meals...</p>
         </div>
       ) : error ? (
-        <div className="w-full max-w-6xl bg-white p-6 rounded-2xl shadow-md border border-red-300">
+        <div className="w-full max-w-6xl rounded-2xl border border-red-300 bg-white p-6 shadow-md">
           <p className="text-sm text-red-600">{error}</p>
         </div>
       ) : (
@@ -154,55 +148,75 @@ const TrackMeals = () => {
 
             return (
               <section key={section.key}>
-                <div className="flex items-center justify-between mb-3 border-b-2 border-b-green-600/70 pb-2">
+                <div className="mb-3 flex items-center justify-between border-b-2 border-b-green-600/70 pb-2">
                   <h2 className="text-2xl font-medium">{section.label}</h2>
-                  <span className="text-[11px] px-2 py-1 rounded-full font-semibold uppercase tracking-wide bg-green-100 text-green-800">
+                  <span className="rounded-full bg-green-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-green-800">
                     {sectionMeals.length} items
                   </span>
                 </div>
 
                 {sectionMeals.length === 0 ? (
-                  <div className="bg-white p-5 rounded-2xl shadow-md border border-green-200">
+                  <div className="rounded-2xl border border-green-200 bg-white p-5 shadow-md">
                     <p className="text-sm text-gray-600">No meals recorded for this section on the selected date.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
-                    {sectionMeals.map((meal) => (
-                      <div
-                        key={meal.id}
-                        className="flex flex-col bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm space-y-3 transition-all hover:-translate-y-0.5 hover:shadow-md"
-                      >
-                        <div className="flex items-center justify-between">
-                          <p className="text-lg font-semibold leading-tight">{meal.meal_name}</p>
-                          <span className="text-[11px] px-2 py-1 rounded-full font-semibold uppercase tracking-wide bg-green-100 text-green-800">
-                            {formatMealTime(meal.eaten_at)}
-                          </span>
-                        </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2">
+                    {sectionMeals.map((meal) => {
+                      const totals = sumMealMacros(meal.meal_items)
 
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            className="box-content cursor-pointer p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-green-600 hover:border-green-600 hover:text-white transition-all flex items-center"
-                            aria-label="Delete meal"
-                            onClick={() => deleteMeal(meal.id)}
-                          >
-                            <IconTrash size={18} />
-                          </button>
-                          <button
-                            type="button"
-                            className="box-content cursor-pointer p-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-green-600 hover:border-green-600 hover:text-white transition-all flex items-center"
-                            aria-label="Edit meal"
-                            onClick={() => router.push(`/trackMeals/addMeal?mealId=${meal.id}`)}
-                          >
-                            <IconPencil size={18} />
-                          </button>
-                        </div>
+                      return (
+                        <div
+                          key={meal.id}
+                          className="flex flex-col space-y-3 rounded-2xl border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                        >
+                          <div className="flex items-center justify-between">
+                            <p className="text-lg font-semibold leading-tight">{meal.meal_name}</p>
+                            <span className="rounded-full bg-green-100 px-2 py-1 text-[11px] font-semibold uppercase tracking-wide text-green-800">
+                              {formatMealTime(meal.eaten_at)}
+                            </span>
+                          </div>
 
-                        <p className="text-sm text-gray-700">
-                          <span className="font-medium text-gray-800">Notes:</span> {meal.notes || 'No notes'}
-                        </p>
-                      </div>
-                    ))}
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className="box-content flex items-center rounded-lg border border-gray-200 p-1.5 text-gray-600 transition-all hover:border-green-600 hover:bg-green-600 hover:text-white cursor-pointer"
+                              aria-label="Delete meal"
+                              onClick={() => deleteMeal(meal.id)}
+                            >
+                              <IconTrash size={18} />
+                            </button>
+                            <button
+                              type="button"
+                              className="box-content flex items-center rounded-lg border border-gray-200 p-1.5 text-gray-600 transition-all hover:border-green-600 hover:bg-green-600 hover:text-white cursor-pointer"
+                              aria-label="Edit meal"
+                              onClick={() => router.push(`/trackMeals/addMeal?mealId=${meal.id}`)}
+                            >
+                              <IconPencil size={18} />
+                            </button>
+                          </div>
+
+                          {meal.meal_items.length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-sm font-medium text-gray-800">Foods in this meal</p>
+                              <div className="flex flex-wrap gap-2">
+                                {meal.meal_items.map((item) => (
+                                  <span key={item.id} className="rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs text-green-900">
+                                    {item.quantity}x {item.food_name}
+                                  </span>
+                                ))}
+                              </div>
+                              <p className="text-xs text-gray-600">
+                                {formatMacroValue(totals.calories, 0)} cal | {formatMacroValue(totals.protein_g)}g protein | {formatMacroValue(totals.carbs_g)}g carbs | {formatMacroValue(totals.fat_g)}g fat
+                              </p>
+                            </div>
+                          )}
+
+                          <p className="text-sm text-gray-700">
+                            <span className="font-medium text-gray-800">Notes:</span> {meal.notes || 'No notes'}
+                          </p>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </section>
@@ -213,5 +227,3 @@ const TrackMeals = () => {
     </div>
   )
 }
-
-export default TrackMeals
