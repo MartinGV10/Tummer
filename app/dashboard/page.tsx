@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { Avatar } from '@radix-ui/themes'
-import { IconBrain, IconChartBar, IconMoodSadDizzy, IconPoo, IconSoup, IconTrendingUp } from '@tabler/icons-react'
+import { IconBrain, IconChartBar, IconMoodSadDizzy, IconPoo, IconSoup, IconTrendingUp, IconUsers, IconUsersGroup } from '@tabler/icons-react'
 import Link from 'next/link'
 import { useProfile } from '@/src/context/ProfileContext'
 import useMeals from '@/src/context/TrackedMealsContext'
@@ -629,6 +629,10 @@ export default function DashboardPage() {
           <Link href="/log" className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3 hover:border-green-400 hover:text-green-700 transition-all">
             <span className="font-medium">Review trigger foods</span>
             <IconMoodSadDizzy size={22} />
+          </Link>
+          <Link href="/community" className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-3 hover:border-green-400 hover:text-green-700 transition-all">
+            <span className="font-medium">Engage with the Community</span>
+            <IconUsersGroup size={22} />
           </Link>
         </section>
       </div>
