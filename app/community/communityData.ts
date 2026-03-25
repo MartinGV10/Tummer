@@ -29,6 +29,7 @@ export type CommunityPostCommentRow = {
   post_id: string
   user_id: string
   content: string
+  parent_id: string | null
   created_at: string
   updated_at: string
 }
@@ -60,7 +61,7 @@ export const POST_TYPE_OPTIONS = [
   { value: 'flare_update', label: 'Flare Update' },
 ] as const
 export const COMMUNITY_POST_SELECT = 'id, user_id, content, tag, post_type, created_at, updated_at'
-export const COMMUNITY_COMMENT_SELECT = 'id, post_id, user_id, content, created_at, updated_at'
+export const COMMUNITY_COMMENT_SELECT = 'id, post_id, user_id, content, parent_id, created_at, updated_at'
 
 export function displayName(profile: ProfileSummary | null): string {
   if (!profile) return 'Community member'
@@ -294,6 +295,7 @@ export function normalizeCommunityComment(row: Partial<CommunityPostCommentRow>)
     post_id: row.post_id ?? '',
     user_id: row.user_id ?? '',
     content: row.content ?? '',
+    parent_id: row.parent_id ?? null,
     created_at: createdAt,
     updated_at: updatedAt,
   }
@@ -336,7 +338,64 @@ export function getFriendlyCommentError(error: PostgrestError | null): string {
   if (!error) return 'Could not send your reply right now.'
   if (error.code === '42501') return 'You do not have permission to reply to this post.'
   if (error.code === '23503') return 'This post is no longer available for replies.'
+  if (isMissingColumnError(error, 'parent_id')) {
+    return 'Threaded replies need a quick database update before they can be used.'
+  }
   return 'Could not send your reply right now.'
+}
+
+export async function fetchCommunityComments(postId: string) {
+  const fullSelect = await supabase
+    .from('community_post_comments')
+    .select(COMMUNITY_COMMENT_SELECT)
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true })
+
+  if (fullSelect.error && isMissingColumnError(fullSelect.error, 'parent_id')) {
+    return supabase
+      .from('community_post_comments')
+      .select('id, post_id, user_id, content, created_at, updated_at')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true })
+  }
+
+  return fullSelect
+}
+
+export async function insertCommunityComment(
+  postId: string,
+  userId: string,
+  content: string,
+  parentId?: string | null
+) {
+  const fullInsert = await supabase
+    .from('community_post_comments')
+    .insert({
+      post_id: postId,
+      user_id: userId,
+      content,
+      parent_id: parentId ?? null,
+    })
+    .select(COMMUNITY_COMMENT_SELECT)
+    .single()
+
+  if (fullInsert.error && isMissingColumnError(fullInsert.error, 'parent_id')) {
+    if (parentId) {
+      return fullInsert
+    }
+
+    return supabase
+      .from('community_post_comments')
+      .insert({
+        post_id: postId,
+        user_id: userId,
+        content,
+      })
+      .select('id, post_id, user_id, content, created_at, updated_at')
+      .single()
+  }
+
+  return fullInsert
 }
 
 export function formatPostDebugDetails(error: PostgrestError | null): string {
