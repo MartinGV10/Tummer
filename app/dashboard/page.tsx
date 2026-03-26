@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Avatar } from '@radix-ui/themes'
 import { IconBrain, IconChartBar, IconMoodSadDizzy, IconPoo, IconSoup, IconTrendingUp, IconUsersGroup } from '@tabler/icons-react'
 import Link from 'next/link'
+import AdSenseAd from '@/app/components/AdSenseAd'
 import { useProfile } from '@/src/context/ProfileContext'
 import useMeals from '@/src/context/TrackedMealsContext'
 import { supabase } from '@/lib/supabaseClient'
@@ -581,6 +582,10 @@ export default function DashboardPage() {
             {isDashboardDataLoading ? '-' : daysSinceSymptom === null ? '-' : daysSinceSymptom}
           </p>
         </div>
+      </div>
+
+      <div className="w-full max-w-6xl mb-6">
+        <AdSenseAd slot="4563997002" />
       </div>
 
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-12 gap-5 mb-6">
