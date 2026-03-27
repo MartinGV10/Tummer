@@ -1,5 +1,6 @@
 'use client'
 import React, { useEffect, useState, useRef } from 'react'
+import Link from 'next/link'
 import { useProfile } from '@/src/context/ProfileContext'
 import { Avatar, Callout } from '@radix-ui/themes'
 import { IconInfoCircle, IconPhotoEdit, IconTrashX } from '@tabler/icons-react'
@@ -27,6 +28,7 @@ const Settings = () => {
   const [conditionId, setConditionId] = useState('')
   const [conditions, setConditions] = useState<Condition[]>([])
   const [saving, setSaving] = useState(false)
+  const [sendingPasswordReset, setSendingPasswordReset] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -98,26 +100,42 @@ const Settings = () => {
         gender: normalizeGenderValue(gender),
       })
 
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (user?.email !== email) {
-        const { error: emailError } = await supabase.auth.updateUser({ email })
-        if (emailError) throw emailError
-
-        setMessage('Check your email to confirm the new address')
-      } else {
-        setMessage('Profile updated!')
-      }
-
-
       setMessage('Profile updated!')
     } catch (err) {
       console.error(err)
       setMessage('Something went wrong updating your profile.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handlePasswordReset = async () => {
+    if (!email) {
+      setMessage('We could not find an email address for this account.')
+      return
+    }
+
+    try {
+      setSendingPasswordReset(true)
+      setMessage(null)
+
+      const redirectTo =
+        typeof window === 'undefined' ? undefined : `${window.location.origin}/reset-password`
+      const { error } = await supabase.auth.resetPasswordForEmail(
+        email,
+        redirectTo ? { redirectTo } : undefined,
+      )
+
+      if (error) {
+        throw error
+      }
+
+      setMessage('Password reset email sent. Check your inbox for the recovery link.')
+    } catch (err) {
+      console.error(err)
+      setMessage('We could not send a password reset email right now.')
+    } finally {
+      setSendingPasswordReset(false)
     }
   }
 
@@ -236,7 +254,6 @@ const deleteAvatar = async () => {
 
               <div className="mt-6 rounded-2xl border border-green-100 bg-green-50/60 p-4">
                 <p className="text-sm font-medium text-gray-900">Profile Photo</p>
-                <p className="mt-1 text-xs text-gray-600">Upload a new avatar or remove your current one.</p>
                 <div className="mt-4 flex items-center justify-center gap-3">
                   <input type="file" accept="image/*" ref={fileInputRef} className="hidden" onChange={handleAvatarChange} />
                   <button
@@ -269,9 +286,9 @@ const deleteAvatar = async () => {
                   <h2 className="text-xl font-semibold text-gray-900">Profile Details</h2>
                   <p className="text-sm text-gray-600">Update the information tied to your account.</p>
                 </div>
-                <div className="rounded-xl bg-green-50 px-3 py-2 text-xs text-green-800">
-                  Changes to your email may require confirmation.
-                </div>
+                {/* <div className="rounded-xl bg-green-50 px-3 py-2 text-xs text-green-800">
+                  Account email changes are handled separately.
+                </div> */}
               </div>
 
               <form onSubmit={handleSubmit} className="mt-6 space-y-6">
@@ -333,16 +350,6 @@ const deleteAvatar = async () => {
                       ))}
                     </select>
                   </div>
-
-                  <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-sm font-medium text-gray-800">Email</label>
-                    <input
-                      type="email"
-                      className={INPUT_CLASS}
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                    />
-                  </div>
                 </div>
 
                 {message && (
@@ -355,20 +362,76 @@ const deleteAvatar = async () => {
                 )}
 
                 <div className="flex flex-col gap-3 border-t border-green-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-gray-600">
-                    Your profile changes help personalize tracking, trends, and recommendations across the app.
-                  </p>
                   <button
                     type="submit"
                     disabled={saving}
-                    className="inline-flex items-center justify-center rounded-xl bg-green-600 px-5 py-2.5 text-sm font-medium text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-green-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex items-center justify-center rounded-xl bg-green-600 px-5 py-2.5 text-sm font-medium text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-green-700 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50 w-full"
                   >
                     {saving ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
               </form>
             </div>
+
           </section>
+        </div>
+
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          <div className="rounded-3xl border border-green-200 bg-white p-6 shadow-sm md:p-7">
+            <div className="flex flex-col gap-2 border-b border-green-100 pb-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Email Change</h2>
+                <p className="text-sm text-gray-600">
+                  {/* Email will be sent to your inbox by Supabase Auth. */}
+                </p>
+              </div>
+              <div className="rounded-xl bg-green-50 px-3 py-2 text-xs text-green-800">
+                Current email: {email || 'No email found'}
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="max-w-xl text-sm text-gray-600">
+                {/* We&apos;ll walk you through requesting a new account email, then Supabase will handle the confirmation steps. */}
+                An email will be sent to your inbox by Supabase Auth detailing email change steps
+              </p>
+              <Link
+                href="/change-email"
+                className="inline-flex items-center justify-center rounded-xl border border-green-200 bg-white px-5 py-2.5 text-sm font-medium text-green-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-green-400 hover:bg-green-50"
+              >
+                Change Email
+              </Link>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-green-200 bg-white p-6 shadow-sm md:p-7">
+            <div className="flex flex-col gap-2 border-b border-green-100 pb-4 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">Password Reset</h2>
+                <p className="text-sm text-gray-600">
+                  {/* Send yourself a secure reset link and update your password through Supabase&apos;s recovery flow. */}
+                </p>
+              </div>
+              <div className="rounded-xl bg-green-50 px-3 py-2 text-xs text-green-800">
+                Reset link goes to {email || 'your account email'}
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <p className="max-w-xl text-sm text-gray-600">
+                {/* We&apos;ll email a password recovery link to the address on your account. Open that link to choose a new password. */}
+                An email will be sent to your inbox by Supabase Auth detailing password reset steps
+              </p>
+              <button
+                type="button"
+                onClick={handlePasswordReset}
+                disabled={sendingPasswordReset || !email}
+                className="inline-flex items-center justify-center rounded-xl border border-green-200 bg-white px-5 py-2.5 text-sm font-medium text-green-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-green-400 hover:bg-green-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {sendingPasswordReset ? 'Sending reset link...' : 'Send Reset Email'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
