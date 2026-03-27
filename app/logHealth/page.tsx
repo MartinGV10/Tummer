@@ -25,6 +25,11 @@ function toDateTimeLocalValue(value: string | null | undefined): string {
   const minutes = String(d.getMinutes()).padStart(2, '0')
   return `${year}-${month}-${day}T${hours}:${minutes}`
 }
+
+function normalizeDecimalInput(value: string): string {
+  return value.replace(',', '.')
+}
+
 const LogHealth = () => {
   const { profile } = useProfile()
   const { daily, symptoms, bowels, refreshHealth, upsertDaily, addSymptom, updateSymptom, deleteSymptom, addBowel, updateBowel, deleteBowel, isAuthenticated } = useHealth()
@@ -130,7 +135,8 @@ const LogHealth = () => {
       return
     }
 
-    const sleepNum = sleep.trim() === '' ? undefined : Number(sleep)
+    const normalizedSleep = normalizeDecimalInput(sleep.trim())
+    const sleepNum = normalizedSleep === '' ? undefined : Number(normalizedSleep)
     const weightNum = weight.trim() === '' ? undefined : Number(weight)
     if (sleepNum !== undefined && Number.isNaN(sleepNum)) {
       setSubmitError('Sleep hours must be a number.')
@@ -546,12 +552,12 @@ const LogHealth = () => {
                 <div>
                   <p className="text-sm font-medium text-gray-800 mb-1">Sleep (hours)</p>
                   <input
-                    type="number"
+                    type="text"
                     value={sleep}
-                    min={0}
-                    step="0.5"
+                    inputMode="decimal"
+                    placeholder="e.g. 8 or 7.5"
                     className="w-full bg-gray-50 rounded-xl border border-green-300 shadow-sm px-3 py-2 text-sm"
-                    onChange={(e) => setSleep(e.target.value)}
+                    onChange={(e) => setSleep(normalizeDecimalInput(e.target.value))}
                   />
                 </div>
                 <div>
