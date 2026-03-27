@@ -1,5 +1,6 @@
 'use client'
 import React, { useEffect, useState, useTransition } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
 import { IconArrowNarrowLeft, IconLeaf } from '@tabler/icons-react'
 import { useRouter } from 'next/navigation'
@@ -155,7 +156,7 @@ const Signup = () => {
         </div>
 
         <button onClick={handleSignup} disabled={isPending} className='font-medium text-lg shadow-lg transition-all cursor-pointer w-full bg-green-600 hover:bg-green-700 text-white rounded-lg p-2 disabled:opacity-50'>
-          {isPending ? 'Creating account…' : 'Sign up'}
+          {isPending ? 'Creating account...' : 'Sign up'}
         </button>
 
         {message && (
@@ -164,12 +165,21 @@ const Signup = () => {
 
         <p className='transition-all w-full p-2 flex items-center justify-center gap-2'>
           Already have an account?
-          <a href="/login" className='cursor-pointer text-green-600 font-semibold hover:text-green-800 transition-all'>Sign in!</a>
+          <Link href="/login" className='cursor-pointer text-green-600 font-semibold hover:text-green-800 transition-all'>Sign in!</Link>
         </p>
       </div>
 
-      <p className='text-sm text-center text-green-600'>By continuing, you agree to our Terms of Service and Privacy Policy</p>
-      <a href="/" className='flex hover:text-green-600 transition-all'><IconArrowNarrowLeft></IconArrowNarrowLeft>Go back home</a>
+      <p className='text-sm text-center text-green-600'>
+        By continuing, you agree to our{' '}
+        <Link href="/terms" className='font-semibold hover:text-green-800 transition-all'>
+          Terms of Service
+        </Link>{' '}
+        and{' '}
+        <Link href="/privacy" className='font-semibold hover:text-green-800 transition-all'>
+          Privacy Policy
+        </Link>
+      </p>
+      <Link href="/" className='flex hover:text-green-600 transition-all'><IconArrowNarrowLeft></IconArrowNarrowLeft>Go back home</Link>
 
     </div>
   )

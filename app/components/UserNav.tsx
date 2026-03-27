@@ -110,7 +110,9 @@ const UserNav = () => {
               </DropdownMenu.Item>
               <DropdownMenu.Item>Upgrade Plan</DropdownMenu.Item>
               <DropdownMenu.Separator />
-              <DropdownMenu.Item>Help</DropdownMenu.Item>
+              <DropdownMenu.Item>
+                <Link href='/help'>Help</Link>
+              </DropdownMenu.Item>
               <DropdownMenu.Separator />
               <DropdownMenu.Item
                 color="red"

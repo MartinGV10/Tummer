@@ -17,7 +17,9 @@ const Footer = () => {
                     <ul className='flex flex-col'>
                         <a href='/signup' className='hover:text-green-700 transition-all cursor-pointer'>Sign up</a>
                         <a href='/login' className='hover:text-green-700 transition-all cursor-pointer'>Login</a>
-                        <a href='/support' className='hover:text-green-700 transition-all cursor-pointer'>Support</a>
+                        <a href='/help' className='hover:text-green-700 transition-all cursor-pointer'>Help</a>
+                        <a href='/terms' className='hover:text-green-700 transition-all cursor-pointer'>Terms</a>
+                        <a href='/privacy' className='hover:text-green-700 transition-all cursor-pointer'>Privacy</a>
                     </ul>
                 </div>
                 <div className='flex flex-col items-center text-center w-1/2'>
@@ -34,7 +36,7 @@ const Footer = () => {
         </div>
 
         <div className='flex flex-col items-center mt-5 border-t w-5/6 border-t-green-400 p-5'>
-            <p>Made by a Crohn's patient</p>
+            <p>Made by a Crohn&apos;s patient</p>
             <p>&copy; Tummer {new Date().getFullYear()}</p>
         </div>
     </footer>
