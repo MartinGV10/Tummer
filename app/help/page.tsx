@@ -1,9 +1,8 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { IconExternalLink, IconFileText, IconLifebuoy, IconMail, IconShieldCheck } from '@tabler/icons-react'
-import Nav from '../Nav'
 import Footer from '../Footer'
-import UserNav from '../components/UserNav'
+import HelpPageNav from '../components/HelpPageNav'
 
 export const metadata: Metadata = {
   title: 'Help | Tummer',
@@ -46,7 +45,7 @@ const helpCards = [
 export default function HelpPage() {
   return (
     <>
-      <UserNav />
+      <HelpPageNav />
       <div className="min-h-screen bg-gray-100 px-4 py-10 md:px-6">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-6">
           <section className="rounded-3xl border border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 p-6 shadow-sm md:p-8">
