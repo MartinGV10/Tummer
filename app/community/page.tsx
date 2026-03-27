@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useRef, useState, useTransition } from 'reac
 import { Avatar } from '@radix-ui/themes'
 import { IconChevronDown, IconMessageCircle, IconSend2, IconX } from '@tabler/icons-react'
 import { supabase } from '@/lib/supabaseClient'
+import AdSenseAd from '@/app/components/AdSenseAd'
 import { useProfile } from '@/src/context/ProfileContext'
 import CommunityPostCard from './CommunityPostCard'
 import {
@@ -49,6 +50,7 @@ const Community = () => {
   const [isPending, startTransition] = useTransition()
   const [now, setNow] = useState(() => Date.now())
   const conditionMapRef = useRef(conditionMap)
+  const feedAdInterval = 12
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(Date.now()), 60_000)
@@ -487,6 +489,23 @@ const Community = () => {
     []
   )
 
+  const feedItems = useMemo(() => {
+    const items: Array<{ type: 'post'; post: CommunityPost } | { type: 'ad'; key: string }> = []
+
+    posts.forEach((post, index) => {
+      items.push({ type: 'post', post })
+
+      const isAdBreak = (index + 1) % feedAdInterval === 0
+      const isNotLastPost = index < posts.length - 1
+
+      if (isAdBreak && isNotLastPost) {
+        items.push({ type: 'ad', key: `community-ad-${index + 1}` })
+      }
+    })
+
+    return items
+  }, [posts])
+
   return (
     <div className="min-h-screen bg-gray-100 px-4 py-6 md:px-6 md:py-8">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 xl:grid xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start">
@@ -641,7 +660,7 @@ const Community = () => {
         </aside>
 
         <section className="min-w-0 space-y-4">
-          <div className="flex flex-col gap-3 rounded-[28px] border border-green-100 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-end sm:justify-between">
+          {/* <div className="flex flex-col gap-3 rounded-[28px] border border-green-100 bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">Live Discussion</p>
               <h2 className="mt-1 text-xl font-semibold tracking-tight text-gray-900">Newest posts first</h2>
@@ -652,7 +671,7 @@ const Community = () => {
             <div className="rounded-2xl border border-green-100 bg-green-50/80 px-4 py-3 text-sm text-gray-700 shadow-sm">
               {posts.length} {posts.length === 1 ? 'post' : 'posts'} in the feed
             </div>
-          </div>
+          </div> */}
 
           {loading ? (
             <div className="overflow-hidden rounded-[28px] border border-green-200 bg-white p-6 shadow-sm">
@@ -665,20 +684,30 @@ const Community = () => {
           ) : posts.length === 0 ? (
             emptyState
           ) : (
-            posts.map((post) => (
-              <CommunityPostCard
-                key={post.id}
-                post={post}
-                now={now}
-                profileId={profile?.id}
-                canLike={Boolean(profile)}
-                isLiking={likingPostIds.includes(post.id)}
-                onLikeToggle={handleLikeToggle}
-                onEdit={handleEdit}
-                onDelete={setDeleteConfirmPostId}
-                deletingId={deletingId}
-                detailHref={`/community/${post.id}`}
-              />
+            feedItems.map((item) => (
+              item.type === 'ad' ? (
+                <AdSenseAd
+                  key={item.key}
+                  slot="4563997002"
+                  variant="community"
+                  label="Sponsored"
+                  description="Community partner message"
+                />
+              ) : (
+                <CommunityPostCard
+                  key={item.post.id}
+                  post={item.post}
+                  now={now}
+                  profileId={profile?.id}
+                  canLike={Boolean(profile)}
+                  isLiking={likingPostIds.includes(item.post.id)}
+                  onLikeToggle={handleLikeToggle}
+                  onEdit={handleEdit}
+                  onDelete={setDeleteConfirmPostId}
+                  deletingId={deletingId}
+                  detailHref={`/community/${item.post.id}`}
+                />
+              )
             ))
           )}
         </section>
