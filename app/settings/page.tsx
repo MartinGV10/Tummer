@@ -5,6 +5,7 @@ import { Avatar, Callout } from '@radix-ui/themes'
 import { IconInfoCircle, IconPhotoEdit, IconTrashX } from '@tabler/icons-react'
 import { supabase } from '@/lib/supabaseClient'
 import { GENDER_OPTIONS, normalizeGenderValue } from '@/src/shared/profileGender'
+import BillingSection from '@/app/components/BillingSection'
 
 type Condition = {
   id: string
@@ -376,6 +377,8 @@ const deleteAvatar = async () => {
         </div>
 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+          <BillingSection profile={profile} />
+
           <div className="rounded-3xl border border-green-200 bg-white p-6 shadow-sm md:p-7">
             <div className="flex flex-col gap-2 border-b border-green-100 pb-4 md:flex-row md:items-end md:justify-between">
               <div>

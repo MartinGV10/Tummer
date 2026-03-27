@@ -106,7 +106,9 @@ const UserNav = () => {
               <DropdownMenu.Item asChild>
                 <Link href="/settings">Settings</Link>
               </DropdownMenu.Item>
-              <DropdownMenu.Item>Upgrade Plan</DropdownMenu.Item>
+              <DropdownMenu.Item asChild>
+                <Link href="/settings">Upgrade Plan</Link>
+              </DropdownMenu.Item>
               <DropdownMenu.Separator />
               <DropdownMenu.Item>
                 <Link href='/help'>Help</Link>
