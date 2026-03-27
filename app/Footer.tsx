@@ -1,46 +1,125 @@
-import React from 'react'
-import { IconBrandGithub, IconBrandLinkedin, IconMail, IconLeaf } from '@tabler/icons-react';
+import Link from 'next/link'
+import { IconBrandGithub, IconBrandLinkedin, IconLeaf, IconMail } from '@tabler/icons-react'
 
-const Footer = () => {
+const productLinks = [
+  { label: 'Sign up', href: '/signup' },
+  { label: 'Log in', href: '/login' },
+  { label: 'Help', href: '/help' },
+]
+
+const legalLinks = [
+  { label: 'Terms', href: '/terms' },
+  { label: 'Privacy', href: '/privacy' },
+]
+
+const socialLinks = [
+  { label: 'GitHub', href: 'https://github.com/MartinGV10', icon: IconBrandGithub },
+  { label: 'LinkedIn', href: 'https://linkedin.com/in/martin-ganen/', icon: IconBrandLinkedin },
+  { label: 'Email', href: 'mailto:martinganen10@gmail.com', icon: IconMail },
+]
+
+export default function Footer() {
   return (
-    <footer className='flex flex-col items-center justify-around bg-green-50 border-t-4 border-t-green-300 space-y-5'>
-        <div className='flex justify-around w-full mt-5 p-5'>
-            <div className='flex flex-col items-start space-y-2'>
-                <h1 className='text-3xl text-black font-medium flex items-center gap-2'>Tummer <IconLeaf size={30}></IconLeaf></h1>
-                <p className='font-medium text-lg'>Make your health a priority</p>
-                <a href='/signup' className='bg-green-600 p-2 rounded-2xl text-white font-medium cursor-pointer hover:bg-green-700 transition-all shadow-lg'>Begin Tracking</a>
+    <footer className="border-t border-green-200 bg-[radial-gradient(circle_at_top_left,_rgba(187,247,208,0.4),_transparent_30%),linear-gradient(to_bottom,_#f7fdf8,_#eff6f1)]">
+      <div className="mx-auto w-full max-w-7xl px-4 py-10 md:px-6 md:py-12">
+        <div className="rounded-[2rem] border border-green-200 bg-white/85 p-6 shadow-sm backdrop-blur-sm md:p-8">
+          <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr_0.8fr]">
+            <div>
+              <div className="inline-flex items-center gap-3 rounded-full border border-green-200 bg-green-50 px-4 py-2 text-green-950">
+                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-green-600 text-white shadow-sm">
+                  <IconLeaf size={20} />
+                </span>
+                <span>
+                  <span className="block text-lg font-semibold tracking-tight">Tummer</span>
+                  <span className="block text-xs uppercase tracking-[0.22em] text-green-700">Built for real daily tracking</span>
+                </span>
+              </div>
+
+              <p className="mt-5 max-w-md text-sm leading-7 text-gray-600">
+                A calmer place to log meals, symptoms, and health patterns so small daily entries can turn into useful insight over time.
+              </p>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/signup"
+                  className="inline-flex items-center justify-center rounded-2xl bg-green-600 px-5 py-3 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-green-700"
+                >
+                  Begin Tracking
+                </Link>
+                <Link
+                  href="/help"
+                  className="inline-flex items-center justify-center rounded-2xl border border-green-200 bg-white px-5 py-3 text-sm font-semibold text-green-800 transition-all hover:-translate-y-0.5 hover:border-green-400 hover:bg-green-50"
+                >
+                  Get Support
+                </Link>
+              </div>
             </div>
 
-            <div className='flex justify-around w-1/5'>
-                <div>
-                    <h1 className='font-semibold'>Join</h1>
-                    <ul className='flex flex-col'>
-                        <a href='/signup' className='hover:text-green-700 transition-all cursor-pointer'>Sign up</a>
-                        <a href='/login' className='hover:text-green-700 transition-all cursor-pointer'>Login</a>
-                        <a href='/help' className='hover:text-green-700 transition-all cursor-pointer'>Help</a>
-                        <a href='/terms' className='hover:text-green-700 transition-all cursor-pointer'>Terms</a>
-                        <a href='/privacy' className='hover:text-green-700 transition-all cursor-pointer'>Privacy</a>
-                    </ul>
+            <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-1">
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">Explore</h2>
+                <div className="mt-4 flex flex-col gap-3">
+                  {productLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className="text-sm text-gray-700 transition-all hover:text-green-700"
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
                 </div>
-                <div className='flex flex-col items-center text-center w-1/2'>
-                    <h1 className='font-semibold'>About the creator</h1>
-                    <div className='flex items-center justify-center gap-2'>
-                        <a target='_blank' href='https://github.com/MartinGV10'><IconBrandGithub  size={30} className='cursor-pointer hover:text-green-800 hover:bg-green-300 rounded-2xl p-1 box-content transition-all'></IconBrandGithub></a>
+              </div>
 
-                        <a target='_blank' href='https://linkedin.com/in/martin-ganen/'><IconBrandLinkedin size={30} className='cursor-pointer hover:text-green-800 hover:bg-green-300 rounded-2xl p-1 box-content transition-all'></IconBrandLinkedin></a>
-
-                        <a target='_blank' href='mailto:martinganen10@gmail.com'><IconMail size={30} className='cursor-pointer hover:text-green-800 hover:bg-green-300 rounded-2xl p-1 box-content transition-all'></IconMail></a>
-                    </div>
+              <div>
+                <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">Legal</h2>
+                <div className="mt-4 flex flex-col gap-3">
+                  {legalLinks.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className="text-sm text-gray-700 transition-all hover:text-green-700"
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
                 </div>
+              </div>
             </div>
-        </div>
 
-        <div className='flex flex-col items-center mt-5 border-t w-5/6 border-t-green-400 p-5'>
-            <p>Made by a Crohn&apos;s patient</p>
+            <div>
+              <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">Creator</h2>
+              <p className="mt-4 text-sm leading-7 text-gray-600">
+                Made by a Crohn&apos;s patient with a focus on making health tracking feel more supportive and less overwhelming.
+              </p>
+
+              <div className="mt-5 flex items-center gap-3">
+                {socialLinks.map((link) => {
+                  const Icon = link.icon
+
+                  return (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={link.label}
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-green-200 bg-white text-green-800 shadow-sm transition-all hover:-translate-y-0.5 hover:border-green-400 hover:bg-green-50"
+                    >
+                      <Icon size={20} />
+                    </a>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 flex flex-col gap-2 border-t border-green-100 pt-6 text-sm text-gray-500 md:flex-row md:items-center md:justify-between">
+            <p>Made by a Crohn&apos;s patient.</p>
             <p>&copy; Tummer {new Date().getFullYear()}</p>
+          </div>
         </div>
+      </div>
     </footer>
   )
 }
-
-export default Footer
