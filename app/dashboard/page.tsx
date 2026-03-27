@@ -73,8 +73,44 @@ type DashboardAiCache = {
   data: DashboardAiData
 }
 
+type DashboardRangeId = '7d' | '14d' | '30d' | '365d'
+
+type DashboardRangeOption = {
+  id: DashboardRangeId
+  label: string
+  shortLabel: string
+  days: number
+}
+
+type AggregatedPoint = {
+  key: string
+  label: string
+  meals: number
+  bowels: number
+  symptoms: number
+  stress: number | null
+  sleep: number | null
+  overallFeeling: number | null
+  flareDays: number
+  periodDays: number
+  energy: number | null
+  hydration: number | null
+}
+
 const AI_CACHE_KEY = 'dashboard_ai_insights_v1'
 const AI_CACHE_TTL_MS = 15 * 60 * 1000
+const FREE_RANGE: DashboardRangeOption = {
+  id: '7d',
+  label: '1 Week',
+  shortLabel: '7D',
+  days: 7,
+}
+const PREMIUM_RANGES: DashboardRangeOption[] = [
+  FREE_RANGE,
+  { id: '14d', label: '2 Weeks', shortLabel: '14D', days: 14 },
+  { id: '30d', label: '1 Month', shortLabel: '30D', days: 30 },
+  { id: '365d', label: '1 Year', shortLabel: '1Y', days: 365 },
+]
 
 function normalizeProfileContextValue(value: string | null | undefined): string | null {
   const normalized = (value ?? '').trim()
@@ -115,6 +151,53 @@ function buildLastNDays(n: number): Array<{ key: string; label: string }> {
   return out
 }
 
+function formatDayLabel(dateKey: string, totalDays: number): string {
+  const date = new Date(`${dateKey}T00:00:00`)
+
+  if (totalDays <= 14) {
+    return date.toLocaleDateString('en-US', { weekday: 'short' })
+  }
+
+  if (totalDays <= 45) {
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+
+  return date.toLocaleDateString('en-US', { month: 'short' })
+}
+
+function formatRangeSummary(days: number): string {
+  if (days === 7) return 'Last 7 days'
+  if (days === 14) return 'Last 14 days'
+  if (days === 30) return 'Last 30 days'
+  if (days === 365) return 'Last 12 months'
+  return `Last ${days} days`
+}
+
+function averageNullable(values: Array<number | null | undefined>): number | null {
+  const numericValues = values.filter((value): value is number => typeof value === 'number')
+
+  if (numericValues.length === 0) {
+    return null
+  }
+
+  const average = numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length
+  return Math.round(average * 10) / 10
+}
+
+function formatMonthKey(dateKey: string): string {
+  return dateKey.slice(0, 7)
+}
+
+function formatMonthLabel(monthKey: string): string {
+  const date = new Date(`${monthKey}-01T00:00:00`)
+  return date.toLocaleDateString('en-US', { month: 'short' })
+}
+
+function formatMonthTableLabel(monthKey: string): string {
+  const date = new Date(`${monthKey}-01T00:00:00`)
+  return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+}
+
 function daysBetween(dateA: string, dateB: Date): number {
   const parsedA = new Date(`${dateA}T00:00:00`)
   const parsedB = new Date(`${toDateKey(dateB)}T00:00:00`)
@@ -141,6 +224,9 @@ function findTriggerMatch(mealName: string, triggerFoods: string[]): string | nu
 export default function DashboardPage() {
   const { profile } = useProfile()
   const { meals, loading: loadingMeals } = useMeals()
+  const isPremium = Boolean(profile?.is_premium)
+  const availableRanges = isPremium ? PREMIUM_RANGES : [FREE_RANGE]
+  const [selectedRange, setSelectedRange] = useState<DashboardRangeId>(isPremium ? '14d' : '7d')
 
   const [loadingHealth, setLoadingHealth] = useState(true)
   const [healthError, setHealthError] = useState<string | null>(null)
@@ -157,12 +243,25 @@ export default function DashboardPage() {
 
   const today = useMemo(() => new Date(), [])
   const todayKey = useMemo(() => toDateKey(today), [today])
-  const last7Days = useMemo(() => buildLastNDays(7), [])
-  const rangeStart = last7Days[0]?.key ?? todayKey
+  const selectedRangeOption = useMemo(
+    () => availableRanges.find((range) => range.id === selectedRange) ?? availableRanges[0],
+    [availableRanges, selectedRange],
+  )
+  const chartWindowDays = selectedRangeOption.days
+  const aiWindowDays = isPremium ? 14 : 7
+  const fetchWindowDays = Math.max(chartWindowDays, aiWindowDays)
+  const chartDays = useMemo(() => buildLastNDays(chartWindowDays), [chartWindowDays])
+  const aiDays = useMemo(() => buildLastNDays(aiWindowDays), [aiWindowDays])
+  const fetchDays = useMemo(() => buildLastNDays(fetchWindowDays), [fetchWindowDays])
+  const rangeStart = fetchDays[0]?.key ?? todayKey
   const showPeriodDay = useMemo(() => {
     if (!profile) return false
     return normalizeGenderValue(profile.gender) !== 'male'
   }, [profile])
+
+  useEffect(() => {
+    setSelectedRange(isPremium ? '14d' : '7d')
+  }, [isPremium])
 
   useEffect(() => {
     let active = true
@@ -319,15 +418,15 @@ export default function DashboardPage() {
 
   const mealsToday = useMemo(() => meals.filter((m) => isSameLocalDay(m.eaten_at, today)).length, [meals, today])
 
-  const mealsByDay = useMemo(() => {
+  const mealsByFetchedDay = useMemo(() => {
     const out: Record<string, number> = {}
-    for (const day of last7Days) out[day.key] = 0
+    for (const day of fetchDays) out[day.key] = 0
     for (const meal of meals) {
       const key = toDateKey(new Date(meal.eaten_at))
       if (key in out) out[key] += 1
     }
     return out
-  }, [meals, last7Days])
+  }, [meals, fetchDays])
 
   const logIdToDate = useMemo(() => {
     const map: Record<string, string> = {}
@@ -335,35 +434,181 @@ export default function DashboardPage() {
     return map
   }, [weeklyDailyLogs])
 
-  const bowelsByDay = useMemo(() => {
+  const bowelsByFetchedDay = useMemo(() => {
     const out: Record<string, number> = {}
-    for (const day of last7Days) out[day.key] = 0
+    for (const day of fetchDays) out[day.key] = 0
     for (const b of weeklyBowels) {
       const dateKey = logIdToDate[b.daily_log_id]
       if (dateKey && dateKey in out) out[dateKey] += 1
     }
     return out
-  }, [weeklyBowels, logIdToDate, last7Days])
+  }, [weeklyBowels, logIdToDate, fetchDays])
 
-  const symptomsByDay = useMemo(() => {
+  const symptomsByFetchedDay = useMemo(() => {
     const out: Record<string, number> = {}
-    for (const day of last7Days) out[day.key] = 0
+    for (const day of fetchDays) out[day.key] = 0
     for (const s of weeklySymptoms) {
       const dateKey = logIdToDate[s.daily_log_id]
       if (dateKey && dateKey in out) out[dateKey] += 1
     }
     return out
-  }, [weeklySymptoms, logIdToDate, last7Days])
+  }, [weeklySymptoms, logIdToDate, fetchDays])
 
-  const bowelsToday = bowelsByDay[todayKey] ?? 0
-  const symptomsToday = symptomsByDay[todayKey] ?? 0
+  const bowelsToday = bowelsByFetchedDay[todayKey] ?? 0
+  const symptomsToday = symptomsByFetchedDay[todayKey] ?? 0
   const daysSinceSymptom = lastSymptomDate ? Math.max(0, daysBetween(lastSymptomDate, today)) : null
 
-  const maxBowels = Math.max(1, ...Object.values(bowelsByDay))
-  const maxMeals = Math.max(1, ...Object.values(mealsByDay))
+  const mealsByChartDay = useMemo(() => {
+    const out: Record<string, number> = {}
+    for (const day of chartDays) {
+      out[day.key] = mealsByFetchedDay[day.key] ?? 0
+    }
+    return out
+  }, [chartDays, mealsByFetchedDay])
+
+  const bowelsByChartDay = useMemo(() => {
+    const out: Record<string, number> = {}
+    for (const day of chartDays) {
+      out[day.key] = bowelsByFetchedDay[day.key] ?? 0
+    }
+    return out
+  }, [chartDays, bowelsByFetchedDay])
+
+  const symptomsByChartDay = useMemo(() => {
+    const out: Record<string, number> = {}
+    for (const day of chartDays) {
+      out[day.key] = symptomsByFetchedDay[day.key] ?? 0
+    }
+    return out
+  }, [chartDays, symptomsByFetchedDay])
+
+  const chartLogsByDay = useMemo(() => {
+    const set = new Set(chartDays.map((day) => day.key))
+    return weeklyDailyLogs.filter((log) => set.has(log.log_date))
+  }, [chartDays, weeklyDailyLogs])
+
+  const aggregatedChartData = useMemo(() => {
+    if (chartWindowDays !== 365) {
+      return null
+    }
+
+    return chartDays.reduce<AggregatedPoint[]>((accumulator, day) => {
+      const monthKey = formatMonthKey(day.key)
+      const existing = accumulator[accumulator.length - 1]
+      const dayLog = chartLogsByDay.find((log) => log.log_date === day.key)
+
+      if (!existing || existing.key !== monthKey) {
+        accumulator.push({
+          key: monthKey,
+          label: formatMonthLabel(monthKey),
+          meals: mealsByChartDay[day.key] ?? 0,
+          bowels: bowelsByChartDay[day.key] ?? 0,
+          symptoms: symptomsByChartDay[day.key] ?? 0,
+          stress: averageNullable([dayLog?.stress_level ?? null]),
+          sleep: averageNullable([dayLog?.sleep_hours ?? null]),
+          overallFeeling: averageNullable([dayLog?.overall_feeling ?? null]),
+          flareDays: dayLog?.flare_day ? 1 : 0,
+          periodDays: dayLog?.period_day ? 1 : 0,
+          energy: averageNullable([dayLog?.energy_level ?? null]),
+          hydration: averageNullable([dayLog?.hydration_level ?? null]),
+        })
+        return accumulator
+      }
+
+      const monthLogs = chartLogsByDay.filter((log) => formatMonthKey(log.log_date) === monthKey)
+
+      existing.meals += mealsByChartDay[day.key] ?? 0
+      existing.bowels += bowelsByChartDay[day.key] ?? 0
+      existing.symptoms += symptomsByChartDay[day.key] ?? 0
+      existing.stress = averageNullable(monthLogs.map((log) => log.stress_level))
+      existing.sleep = averageNullable(monthLogs.map((log) => log.sleep_hours))
+      existing.overallFeeling = averageNullable(monthLogs.map((log) => log.overall_feeling))
+      existing.flareDays = monthLogs.filter((log) => log.flare_day === true).length
+      existing.periodDays = monthLogs.filter((log) => log.period_day === true).length
+      existing.energy = averageNullable(monthLogs.map((log) => log.energy_level))
+      existing.hydration = averageNullable(monthLogs.map((log) => log.hydration_level))
+
+      return accumulator
+    }, [])
+  }, [bowelsByChartDay, chartDays, chartLogsByDay, chartWindowDays, mealsByChartDay, symptomsByChartDay])
+
+  const chartBars = aggregatedChartData
+    ? aggregatedChartData.map((month) => ({
+        key: month.key,
+        label: month.label,
+        meals: month.meals,
+        bowels: month.bowels,
+      }))
+    : chartDays.map((day) => ({
+        key: day.key,
+        label: formatDayLabel(day.key, chartWindowDays),
+        meals: mealsByChartDay[day.key] ?? 0,
+        bowels: bowelsByChartDay[day.key] ?? 0,
+      }))
+
+  const tableRows = aggregatedChartData
+    ? aggregatedChartData.map((month) => ({
+        key: month.key,
+        label: formatMonthTableLabel(month.key),
+        meals: month.meals,
+        bowels: month.bowels,
+        symptoms: month.symptoms,
+        stress: month.stress,
+        sleep: month.sleep,
+        overallFeeling: month.overallFeeling,
+        flareDay: month.flareDays > 0 ? `${month.flareDays} days` : '-',
+        periodDay: month.periodDays > 0 ? `${month.periodDays} days` : '-',
+        energy: month.energy,
+        hydration: month.hydration,
+      }))
+    : chartDays.map((day) => {
+        const log = chartLogsByDay.find((entry) => entry.log_date === day.key)
+
+        return {
+          key: day.key,
+          label: new Date(`${day.key}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          meals: mealsByChartDay[day.key] ?? 0,
+          bowels: bowelsByChartDay[day.key] ?? 0,
+          symptoms: symptomsByChartDay[day.key] ?? 0,
+          stress: log?.stress_level ?? null,
+          sleep: log?.sleep_hours ?? null,
+          overallFeeling: log?.overall_feeling ?? null,
+          flareDay: log?.flare_day === true ? 'Yes' : log?.flare_day === false ? 'No' : '-',
+          periodDay: log?.period_day === true ? 'Yes' : log?.period_day === false ? 'No' : '-',
+          energy: log?.energy_level ?? null,
+          hydration: log?.hydration_level ?? null,
+        }
+      })
+
+  const aiMealsByDay = useMemo(() => {
+    const out: Record<string, number> = {}
+    for (const day of aiDays) {
+      out[day.key] = mealsByFetchedDay[day.key] ?? 0
+    }
+    return out
+  }, [aiDays, mealsByFetchedDay])
+
+  const aiBowelsByDay = useMemo(() => {
+    const out: Record<string, number> = {}
+    for (const day of aiDays) {
+      out[day.key] = bowelsByFetchedDay[day.key] ?? 0
+    }
+    return out
+  }, [aiDays, bowelsByFetchedDay])
+
+  const aiSymptomsByDay = useMemo(() => {
+    const out: Record<string, number> = {}
+    for (const day of aiDays) {
+      out[day.key] = symptomsByFetchedDay[day.key] ?? 0
+    }
+    return out
+  }, [aiDays, symptomsByFetchedDay])
+
+  const maxBowels = Math.max(1, ...chartBars.map((point) => point.bowels))
+  const maxMeals = Math.max(1, ...chartBars.map((point) => point.meals))
 
   const weeklyTriggerMeals = useMemo(() => {
-    const allowedDays = new Set(last7Days.map((d) => d.key))
+    const allowedDays = new Set(aiDays.map((d) => d.key))
     const out: Array<{ date: string; meal_name: string; trigger_food: string }> = []
 
     for (const meal of meals) {
@@ -379,10 +624,10 @@ export default function DashboardPage() {
     }
 
     return out
-  }, [last7Days, meals, triggerFoods])
+  }, [aiDays, meals, triggerFoods])
 
   const weeklyMealEntries = useMemo(() => {
-    const allowedDays = new Set(last7Days.map((d) => d.key))
+    const allowedDays = new Set(aiDays.map((d) => d.key))
     const out: DashboardMealEntry[] = []
 
     for (const meal of meals) {
@@ -397,18 +642,19 @@ export default function DashboardPage() {
     }
 
     return out
-  }, [last7Days, meals])
+  }, [aiDays, meals])
 
   const aiPayload = useMemo(
     () => ({
       today: todayKey,
+      analysisDays: aiWindowDays,
       mealsToday,
       bowelsToday,
       symptomsToday,
       daysSinceSymptom,
-      weeklyMeals: last7Days.map((d) => ({ date: d.key, value: mealsByDay[d.key] ?? 0 })),
-      weeklyBowels: last7Days.map((d) => ({ date: d.key, value: bowelsByDay[d.key] ?? 0 })),
-      weeklyBowelDetails: last7Days.map((d) => {
+      weeklyMeals: aiDays.map((d) => ({ date: d.key, value: aiMealsByDay[d.key] ?? 0 })),
+      weeklyBowels: aiDays.map((d) => ({ date: d.key, value: aiBowelsByDay[d.key] ?? 0 })),
+      weeklyBowelDetails: aiDays.map((d) => {
         const entries = weeklyBowels
           .filter((entry) => logIdToDate[entry.daily_log_id] === d.key)
           .map((entry) => ({
@@ -424,8 +670,8 @@ export default function DashboardPage() {
           entries,
         }
       }),
-      weeklySymptoms: last7Days.map((d) => ({ date: d.key, value: symptomsByDay[d.key] ?? 0 })),
-      weeklySymptomDetails: last7Days.map((d) => {
+      weeklySymptoms: aiDays.map((d) => ({ date: d.key, value: aiSymptomsByDay[d.key] ?? 0 })),
+      weeklySymptomDetails: aiDays.map((d) => {
         const entries = weeklySymptoms
           .filter((entry) => logIdToDate[entry.daily_log_id] === d.key)
           .map((entry) => ({
@@ -439,7 +685,7 @@ export default function DashboardPage() {
           entries,
         }
       }),
-      weeklyFactors: last7Days.map((d) => {
+      weeklyFactors: aiDays.map((d) => {
         const row = weeklyDailyLogs.find((log) => log.log_date === d.key)
         return {
           date: d.key,
@@ -452,7 +698,7 @@ export default function DashboardPage() {
           period_day: showPeriodDay ? (row?.period_day ?? null) : null,
         }
       }),
-      weeklyDailyNotes: last7Days.map((d) => {
+      weeklyDailyNotes: aiDays.map((d) => {
         const row = weeklyDailyLogs.find((log) => log.log_date === d.key)
         return {
           date: d.key,
@@ -467,7 +713,7 @@ export default function DashboardPage() {
         dietaryRestriction: profileRestriction,
       },
     }),
-    [todayKey, mealsToday, bowelsToday, symptomsToday, daysSinceSymptom, last7Days, mealsByDay, bowelsByDay, symptomsByDay, weeklyDailyLogs, weeklyBowels, weeklySymptoms, logIdToDate, triggerFoods, weeklyTriggerMeals, weeklyMealEntries, profileCondition, profileRestriction, showPeriodDay]
+    [todayKey, aiWindowDays, mealsToday, bowelsToday, symptomsToday, daysSinceSymptom, aiDays, aiMealsByDay, aiBowelsByDay, aiSymptomsByDay, weeklyDailyLogs, weeklyBowels, weeklySymptoms, logIdToDate, triggerFoods, weeklyTriggerMeals, weeklyMealEntries, profileCondition, profileRestriction, showPeriodDay]
   )
 
   const hasAiInputs = useMemo(
@@ -509,11 +755,17 @@ export default function DashboardPage() {
 
       setAiLoading(true)
       setAiError(null)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
 
       const res = await fetch('/api/dashboard-insights', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(session?.access_token
+            ? { Authorization: `Bearer ${session.access_token}` }
+            : {}),
         },
         body: JSON.stringify(aiPayload),
       })
@@ -558,9 +810,34 @@ export default function DashboardPage() {
       </div>
 
       <div className="w-full max-w-6xl mb-6 rounded-2xl border border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 p-4 shadow-sm">
-        <p className="text-sm text-gray-700">
-          Today is <span className="font-medium">{today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
-        </p>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <p className="text-sm text-gray-700">
+            Today is <span className="font-medium">{today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
+          </p>
+          {isPremium ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-green-700">History</span>
+              {availableRanges.map((range) => (
+                <button
+                  key={range.id}
+                  type="button"
+                  onClick={() => setSelectedRange(range.id)}
+                  className={`rounded-full px-3 py-2 text-xs font-semibold transition-all ${
+                    selectedRangeOption.id === range.id
+                      ? 'bg-green-600 text-white shadow-sm'
+                      : 'border border-green-200 bg-white text-green-800 hover:border-green-400 hover:bg-green-50'
+                  }`}
+                >
+                  {range.label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-full border border-green-200 bg-white px-4 py-2 text-xs font-medium text-green-800">
+              Free dashboard range: 1 week
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="w-full max-w-6xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -593,9 +870,11 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-3 border-b border-green-200 pb-3">
             <h2 className="text-xl font-semibold flex items-center gap-2">
               <IconChartBar size={20} />
-              Weekly Trends
+              Trend History
             </h2>
-            <span className="text-xs text-gray-600">Last 7 days</span>
+            <span className="text-xs text-gray-600">
+              {chartWindowDays === 365 ? 'Last 12 months, grouped by month' : formatRangeSummary(chartWindowDays)}
+            </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -606,18 +885,20 @@ export default function DashboardPage() {
                   <p className="text-sm text-gray-500">Loading chart...</p>
                 </div>
               ) : (
-                <div className="h-40 flex items-end gap-2">
-                  {last7Days.map((d) => {
-                    const value = bowelsByDay[d.key] ?? 0
+                <div className="overflow-x-auto">
+                  <div className="flex h-40 min-w-max items-end gap-2">
+                  {chartBars.map((point) => {
+                    const value = point.bowels
                     const heightPx = Math.max(10, Math.round((value / maxBowels) * 120))
                     return (
-                      <div key={`bowel-${d.key}`} className="h-full flex-1 flex flex-col justify-end items-center gap-1">
+                      <div key={`bowel-${point.key}`} className="flex h-full w-10 flex-col items-center justify-end gap-1">
                         <span className="text-[11px] text-gray-600">{value}</span>
-                        <div title={`${d.key}: ${value}`} className="w-full rounded-md bg-green-500/80 hover:bg-green-600 transition-all" style={{ height: `${heightPx}px` }} />
-                        <span className="text-[11px] text-gray-600">{d.label}</span>
+                        <div title={`${point.key}: ${value}`} className="w-full rounded-md bg-green-500/80 hover:bg-green-600 transition-all" style={{ height: `${heightPx}px` }} />
+                        <span className="text-[11px] text-gray-600">{point.label}</span>
                       </div>
                     )
                   })}
+                  </div>
                 </div>
               )}
             </div>
@@ -629,18 +910,20 @@ export default function DashboardPage() {
                   <p className="text-sm text-gray-500">Loading chart...</p>
                 </div>
               ) : (
-                <div className="h-40 flex items-end gap-2">
-                  {last7Days.map((d) => {
-                    const value = mealsByDay[d.key] ?? 0
+                <div className="overflow-x-auto">
+                  <div className="flex h-40 min-w-max items-end gap-2">
+                  {chartBars.map((point) => {
+                    const value = point.meals
                     const heightPx = Math.max(10, Math.round((value / maxMeals) * 120))
                     return (
-                      <div key={`meal-${d.key}`} className="h-full flex-1 flex flex-col justify-end items-center gap-1">
+                      <div key={`meal-${point.key}`} className="flex h-full w-10 flex-col items-center justify-end gap-1">
                         <span className="text-[11px] text-gray-600">{value}</span>
-                        <div title={`${d.key}: ${value}`} className="w-full rounded-md bg-emerald-500/80 hover:bg-emerald-600 transition-all" style={{ height: `${heightPx}px` }} />
-                        <span className="text-[11px] text-gray-600">{d.label}</span>
+                        <div title={`${point.key}: ${value}`} className="w-full rounded-md bg-emerald-500/80 hover:bg-emerald-600 transition-all" style={{ height: `${heightPx}px` }} />
+                        <span className="text-[11px] text-gray-600">{point.label}</span>
                       </div>
                     )
                   })}
+                  </div>
                 </div>
               )}
             </div>
@@ -670,11 +953,13 @@ export default function DashboardPage() {
 
       <div className="w-full max-w-6xl mb-6 bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
         <div className="flex items-center justify-between mb-3 border-b border-green-200 pb-3">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <IconTrendingUp size={20} />
-            Weekly Summary Table
-          </h2>
-          <span className="text-xs text-gray-600">Last 7 days</span>
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <IconTrendingUp size={20} />
+              Summary Table
+            </h2>
+          <span className="text-xs text-gray-600">
+            {chartWindowDays === 365 ? 'Monthly totals and averages' : formatRangeSummary(chartWindowDays)}
+          </span>
         </div>
 
         <div className="overflow-x-auto">
@@ -695,21 +980,20 @@ export default function DashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {last7Days.map((d) => {
-                const log = weeklyDailyLogs.find((l) => l.log_date === d.key)
+              {tableRows.map((row) => {
                 return (
-                  <tr key={`row-${d.key}`} className="border-b border-green-50 last:border-b-0">
-                    <td className="py-2 pr-2 font-medium text-gray-800">{new Date(`${d.key}T00:00:00`).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</td>
-                    <td className="py-2 pr-2">{mealsByDay[d.key] ?? 0}</td>
-                    <td className="py-2 pr-2">{bowelsByDay[d.key] ?? 0}</td>
-                    <td className="py-2 pr-2">{symptomsByDay[d.key] ?? 0}</td>
-                    <td className="py-2 pr-2">{log?.stress_level ?? '-'}</td>
-                    <td className="py-2 pr-2">{log?.sleep_hours ?? '-'}</td>
-                    <td className="py-2 pr-2">{log?.overall_feeling ?? '-'}</td>
-                    <td className="py-2 pr-2">{log?.flare_day === true ? 'Yes' : log?.flare_day === false ? 'No' : '-'}</td>
-                    {showPeriodDay && <td className="py-2 pr-2">{log?.period_day === true ? 'Yes' : log?.period_day === false ? 'No' : '-'}</td>}
-                    <td className="py-2 pr-2">{log?.energy_level ?? '-'}</td>
-                    <td className="py-2 pr-2">{log?.hydration_level ?? '-'}</td>
+                  <tr key={`row-${row.key}`} className="border-b border-green-50 last:border-b-0">
+                    <td className="py-2 pr-2 font-medium text-gray-800">{row.label}</td>
+                    <td className="py-2 pr-2">{row.meals}</td>
+                    <td className="py-2 pr-2">{row.bowels}</td>
+                    <td className="py-2 pr-2">{row.symptoms}</td>
+                    <td className="py-2 pr-2">{row.stress ?? '-'}</td>
+                    <td className="py-2 pr-2">{row.sleep ?? '-'}</td>
+                    <td className="py-2 pr-2">{row.overallFeeling ?? '-'}</td>
+                    <td className="py-2 pr-2">{row.flareDay}</td>
+                    {showPeriodDay && <td className="py-2 pr-2">{row.periodDay}</td>}
+                    <td className="py-2 pr-2">{row.energy ?? '-'}</td>
+                    <td className="py-2 pr-2">{row.hydration ?? '-'}</td>
                   </tr>
                 )
               })}
@@ -724,6 +1008,9 @@ export default function DashboardPage() {
             <IconBrain size={20} />
             <h3 className="text-lg font-semibold">AI Insights</h3>
           </div>
+          <p className="mb-3 text-xs uppercase tracking-[0.18em] text-green-700">
+            {isPremium ? 'Premium analysis: past 2 weeks' : 'Free analysis: past week'}
+          </p>
           {aiLoading ? (
             <p className="text-sm text-gray-600">Generating insight...</p>
           ) : aiError ? (
@@ -737,6 +1024,9 @@ export default function DashboardPage() {
             <IconBrain size={20} />
             <h3 className="text-lg font-semibold">AI Alerts</h3>
           </div>
+          <p className="mb-3 text-xs uppercase tracking-[0.18em] text-green-700">
+            {isPremium ? 'Premium analysis: past 2 weeks' : 'Free analysis: past week'}
+          </p>
           {aiLoading ? (
             <p className="text-sm text-gray-600">Checking trends...</p>
           ) : aiError ? (

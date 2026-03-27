@@ -4,6 +4,7 @@ import { DASHBOARD_AI_EMPTY_STATE, hasDashboardInsightInputs } from '@/src/share
 
 export type DashboardAiPayload = {
   today: string
+  analysisDays?: number
   mealsToday: number
   bowelsToday: number
   symptomsToday: number
@@ -96,6 +97,13 @@ type ConditionFoodRule = {
 const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 })
+
+function describeAnalysisWindow(days?: number): string {
+  if (days === 14) return 'the past 2 weeks'
+  if (days === 7) return 'the past week'
+  if (typeof days === 'number' && days > 0) return `the past ${days} days`
+  return 'the recent tracking window'
+}
 
 function avg(values: Array<number | null | undefined>): number | null {
   const nums = values.filter((v): v is number => typeof v === 'number' && Number.isFinite(v))
@@ -738,6 +746,7 @@ function buildFallbackDrivers(analytics: ReturnType<typeof buildAnalytics>): str
 
 function fallbackInsight(payload: DashboardAiPayload): DashboardAiResult {
   const analytics = buildAnalytics(payload)
+  const windowLabel = describeAnalysisWindow(payload.analysisDays)
   const drivers = buildFallbackDrivers(analytics)
   let insight = ''
   let alert = ''
@@ -757,11 +766,11 @@ function fallbackInsight(payload: DashboardAiPayload): DashboardAiResult {
   } else if (drivers.length > 0) {
     insight = `The clearest pattern right now is that ${drivers[0]}.`
   } else if (payload.symptomsToday > 0) {
-    insight = `Symptoms were logged today, but the current data does not yet show a strong repeated weekly pattern.`
+    insight = `Symptoms were logged today, but the current data from ${windowLabel} does not yet show a strong repeated pattern.`
   } else if (payload.daysSinceSymptom !== null) {
     insight = `You are ${payload.daysSinceSymptom} day${payload.daysSinceSymptom === 1 ? '' : 's'} out from your last symptom log, which is useful for spotting what changes help keep symptoms quieter.`
   } else {
-    insight = `Keep logging consistently so the app can separate one-off days from repeated symptom patterns.`
+    insight = `Keep logging consistently so the app can separate one-off days from repeated symptom patterns across ${windowLabel}.`
   }
 
   if (analytics.profileContext.condition || analytics.profileContext.dietaryRestriction) {
@@ -785,7 +794,7 @@ function fallbackInsight(payload: DashboardAiPayload): DashboardAiResult {
   } else if (payload.symptomsToday >= 2 && analytics.weekly.symptomBowelOverlapDays >= 1) {
     alert = `Today looks more active than usual. Compare today's symptoms with bowel activity, sleep, and stress to see whether this matches your other higher-symptom days.`
   } else if (analytics.weekly.symptomTrend === 'up') {
-    alert = `Symptoms are rising this week. Watch whether the next 2 to 3 days follow the same pattern, especially around sleep, stress, and bowel activity.`
+    alert = `Symptoms are rising across ${windowLabel}. Watch whether the next 2 to 3 days follow the same pattern, especially around sleep, stress, and bowel activity.`
   } else if (analytics.bowelDetails.bloodPresentCount > 0) {
     alert = `Blood was logged in recent bowel entries. Review timing, stool pattern, and associated notes, and follow your clinician's guidance if this is new or worsening.`
   } else if (analytics.bowelDetails.mucusPresentCount > 0) {
@@ -888,10 +897,11 @@ function buildFinalAlert({
   return normalizedAlert
 }
 
-function buildSystemPrompt(): string {
+function buildSystemPrompt(windowLabel: string): string {
   return [
     'You are an insight engine for a premium gut-health tracking app.',
     'You analyze food-activity volume, symptom logs, bowel logs, and daily wellness factors to produce highly specific, practical dashboard insights.',
+    `The current analysis window is ${windowLabel}.`,
     'Your goals:',
     '1. Detect meaningful repeated patterns.',
     '2. Prioritize worsening or clustered trends over simple summaries.',
@@ -921,9 +931,9 @@ function buildSystemPrompt(): string {
   ].join('\n')
 }
 
-function buildUserPrompt(): string {
+function buildUserPrompt(windowLabel: string): string {
   return [
-    'Analyze this dashboard data and produce the most useful insight for the user.',
+    `Analyze this dashboard data from ${windowLabel} and produce the most useful insight for the user.`,
     '',
     'Choose the strongest finding using this ranking:',
     '1. repeated symptom patterns',
@@ -959,6 +969,7 @@ export async function generateDashboardInsights(
   }
 
   const analytics = buildAnalytics(payload)
+  const windowLabel = describeAnalysisWindow(payload.analysisDays)
   const model = process.env.OPENAI_MODEL ?? 'gpt-4.1-mini'
 
   try {
@@ -970,7 +981,7 @@ export async function generateDashboardInsights(
           content: [
             {
               type: 'input_text',
-              text: buildSystemPrompt(),
+              text: buildSystemPrompt(windowLabel),
             },
           ],
         },
@@ -979,7 +990,8 @@ export async function generateDashboardInsights(
           content: [
             {
               type: 'input_text',
-              text: `${buildUserPrompt()}\n\nDATA:\n${JSON.stringify({
+              text: `${buildUserPrompt(windowLabel)}\n\nDATA:\n${JSON.stringify({
+                analysisDays: payload.analysisDays,
                 today: analytics.today,
                 weekly: analytics.weekly,
                 factors: analytics.factors,
