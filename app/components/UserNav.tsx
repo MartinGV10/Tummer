@@ -4,7 +4,7 @@ import { IconLeaf, IconMenu2, IconX } from '@tabler/icons-react'
 import Link from 'next/link'
 import { Avatar, DropdownMenu } from '@radix-ui/themes'
 import { supabase } from '@/lib/supabaseClient'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useProfile } from '@/src/context/ProfileContext'
 
 // type Profile = {
@@ -38,8 +38,6 @@ const UserNav = () => {
     { label: 'Community', href: '/community'},
   ]
 
-  const router = useRouter()
-
   const isActivePath = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard'
     return pathname === href || pathname.startsWith(`${href}/`)
@@ -53,7 +51,7 @@ const UserNav = () => {
       return
     }
 
-    router.replace('/')
+    window.location.assign('/')
   }
 
   return (
