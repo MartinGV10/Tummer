@@ -959,9 +959,9 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <p className="mt-4 text-sm text-gray-600">
+            {/* <p className="mt-4 text-sm text-gray-600">
               These totals update from the foods you log, so you can track calories and macros for body-weight goals without leaving Tummer.
-            </p>
+            </p> */}
           </>
         ) : (
           <div className="relative overflow-hidden rounded-2xl border border-dashed border-green-300 bg-white/80 p-4">

@@ -64,7 +64,7 @@ const plans = [
     price: '$10',
     cadence: '/month',
     description: 'More context and insight for people who want deeper patterns.',
-    features: ['Everything in Free', 'Expanded insights', 'Macro tracking', 'Data export tools'],
+    features: ['Everything in Free', 'Expanded insights', 'Macro tracking + Meal planning', 'Data export tools'],
     cta: 'Choose Pro',
     href: '/signup',
     highlighted: false,
