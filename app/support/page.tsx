@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useEffect, useMemo, useState } from 'react'
+import Link from 'next/link'
+import { IconLock } from '@tabler/icons-react'
 import { useProfile } from '@/src/context/ProfileContext'
 import { supabase } from '@/lib/supabaseClient'
 
@@ -22,6 +24,23 @@ type ConditionGuide = {
   supplementsToDiscuss: string[]
   sampleMeals: string[]
   substitutions: string[]
+}
+
+type SupportMealPlan = {
+  title: string
+  summary: string
+  meals: Array<{
+    name: string
+    mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack'
+    whyItFits: string
+  }>
+  focusPoints: string[]
+}
+
+type SubstitutionCard = {
+  from: string
+  to: string
+  reason: string
 }
 
 const CONDITION_GUIDES: Record<string, ConditionGuide> = {
@@ -51,6 +70,9 @@ const CONDITION_GUIDES: Record<string, ConditionGuide> = {
       'Swap raw salads for cooked or peeled vegetables during active symptoms.',
       'Swap high-fat fried foods for baked or grilled proteins.',
       'Swap spicy sauces for mild herb-based seasoning.',
+      'Swap tough whole grains for white rice or potatoes during more active symptom days.',
+      'Swap large heavy meals for smaller plates spaced more evenly through the day.',
+      // 'Swap heavily creamy dishes for broth-based or lighter olive-oil-based meals.',
     ],
   },
   ulcerative_colitis: {
@@ -79,6 +101,9 @@ const CONDITION_GUIDES: Record<string, ConditionGuide> = {
       'Swap greasy fast food for lean protein bowls.',
       'Swap high-lactose dairy for lactose-free options if sensitive.',
       'Swap very high-fiber snacks for gentler options during flares.',
+      'Swap oversized meals for smaller, more frequent meals if urgency worsens after eating.',
+      'Swap raw crunchy vegetables for softer cooked vegetables during more active days.',
+      // 'Swap rich takeout meals for simpler rice, potato, or soup-based meals.',
     ],
   },
   ibs: {
@@ -107,6 +132,9 @@ const CONDITION_GUIDES: Record<string, ConditionGuide> = {
       'Swap onion/garlic bases for garlic-infused oil and chives.',
       'Swap wheat pasta for rice or quinoa pasta.',
       'Swap regular milk for lactose-free milk or fortified almond milk.',
+      'Swap large mixed meals for simpler plates with fewer moving parts.',
+      'Swap heavily sauced meals for lighter seasoning with herbs, ginger, or infused oils.',
+      // 'Swap beans or lentils for eggs, tofu, or lean animal protein if legumes are harder to tolerate.',
     ],
   },
   celiac: {
@@ -135,6 +163,9 @@ const CONDITION_GUIDES: Record<string, ConditionGuide> = {
       'Swap wheat bread for certified gluten-free bread.',
       'Swap soy sauce for tamari labeled gluten-free.',
       'Swap flour tortillas for corn tortillas.',
+      'Swap breaded proteins for grilled or baked gluten-free versions.',
+      'Swap packaged snacks with unclear labels for clearly certified gluten-free options.',
+      // 'Swap shared condiment jars or spreads for dedicated gluten-free ones to reduce cross-contact.',
     ],
   },
   lactose: {
@@ -163,6 +194,9 @@ const CONDITION_GUIDES: Record<string, ConditionGuide> = {
       'Swap regular milk for lactose-free milk.',
       'Swap ice cream for lactose-free or dairy-free alternatives.',
       'Swap soft cheeses for aged cheeses that are often lower in lactose.',
+      'Swap creamy sauces for olive-oil-based or dairy-free sauces.',
+      'Swap standard yogurt for lactose-free yogurt or a fortified dairy-free version.',
+      // 'Swap milk-heavy desserts for fruit, dark chocolate, or lactose-free alternatives.',
     ],
   },
   gerd: {
@@ -191,6 +225,9 @@ const CONDITION_GUIDES: Record<string, ConditionGuide> = {
       'Swap tomato-heavy sauces for herb-based olive oil sauces.',
       'Swap spicy meals for mild seasoning.',
       'Swap caffeinated drinks for low-acid or decaf options if needed.',
+      'Swap fried or greasy meals for baked, grilled, or roasted options.',
+      'Swap large late dinners for lighter earlier evening meals.',
+      // 'Swap citrus-heavy snacks for bananas, oats, or other lower-acid choices if tolerated.',
     ],
   },
 }
@@ -221,6 +258,9 @@ const GENERIC_GUIDE: ConditionGuide = {
     'Swap high-fat fried meals for baked or grilled options.',
     'Swap heavily processed snacks for simpler whole-food options.',
     'Swap large meals for smaller portions spread across the day.',
+    'Swap sugary drinks for water or lower-sugar options.',
+    'Swap rich creamy meals for simpler bowls, soups, or plates.',
+    // 'Swap random eating times for a steadier daily meal rhythm.',
   ],
 }
 
@@ -250,7 +290,46 @@ const GUT_HEALTH_DEFAULT_GUIDE: ConditionGuide = {
     'Swap sugary snacks for fruit plus nuts or seeds.',
     'Swap highly processed meals for simple home-cooked bowls.',
     'Swap low-fiber grains for higher-fiber options you tolerate well.',
+    'Swap skipped meals for steadier meals with protein and a tolerated carb.',
+    'Swap very large dinners for more balanced intake across the day.',
+    'Swap low-variety meals for a wider mix of tolerated whole foods over the week.',
   ],
+}
+
+const LOCKED_MEAL_PLAN_PREVIEW = {
+  title: 'Starter meal direction',
+  summary: 'A simple, non-personalized daily structure to help you stay pointed toward gentler, more balanced meals.',
+  meals: [
+    { mealType: 'breakfast', name: 'Protein + tolerated carb + simple fruit' },
+    { mealType: 'lunch', name: 'Lean protein bowl with a gentler side' },
+    { mealType: 'dinner', name: 'Balanced plate with milder ingredients' },
+    { mealType: 'snack', name: 'Small snack built around a safer staple' },
+  ],
+}
+
+function buildSubstitutionCards(substitutions: string[] | undefined, guideLabel: string | undefined): SubstitutionCard[] {
+  if (!substitutions || substitutions.length === 0) return []
+
+  return substitutions.map((entry) => {
+    const normalized = entry.trim()
+    const match = normalized.match(/^swap\s+(.+?)\s+for\s+(.+)$/i)
+
+    if (match) {
+      const from = match[1].trim().replace(/\.$/, '')
+      const to = match[2].trim().replace(/\.$/, '')
+      return {
+        from: from.charAt(0).toUpperCase() + from.slice(1),
+        to: to.charAt(0).toUpperCase() + to.slice(1),
+        reason: `This swap is a smarter default for ${guideLabel ?? 'your current condition focus'} when you want a gentler option without losing structure.`,
+      }
+    }
+
+    return {
+      from: 'Current pattern',
+      to: normalized.replace(/\.$/, ''),
+      reason: `This fits the current support direction for ${guideLabel ?? 'your condition focus'}.`,
+    }
+  })
 }
 
 function normalize(value: string | null | undefined): string {
@@ -267,6 +346,13 @@ function normalizeProfileInput(value: string | null | undefined): string | null 
   if (!cleaned) return null
   if (isNoneLike(cleaned.toLowerCase())) return null
   return cleaned
+}
+
+function toDateKey(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 function resolveGuide(conditionName: string | null, dietaryRestriction: string | null): ConditionGuide {
@@ -298,11 +384,15 @@ function resolveGuide(conditionName: string | null, dietaryRestriction: string |
 
 const Support = () => {
   const { profile } = useProfile()
+  const isPremium = Boolean(profile?.is_premium)
 
   const [conditionName, setConditionName] = useState<string | null>(null)
   const [dietaryRestriction, setDietaryRestriction] = useState<string | null>(null)
   const [loadingGuide, setLoadingGuide] = useState(true)
   const [guideError, setGuideError] = useState<string | null>(null)
+  const [mealPlan, setMealPlan] = useState<SupportMealPlan | null>(null)
+  const [mealPlanLoading, setMealPlanLoading] = useState(false)
+  const [mealPlanError, setMealPlanError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -385,6 +475,69 @@ const Support = () => {
 
   const displayCondition = loadingGuide ? '' : conditionName ?? resolvedGuide.label
   const activeGuide = loadingGuide ? null : resolvedGuide
+  const substitutionCards = useMemo(
+    () => buildSubstitutionCards(activeGuide?.substitutions, displayCondition || activeGuide?.label),
+    [activeGuide?.label, activeGuide?.substitutions, displayCondition]
+  )
+
+  useEffect(() => {
+    let active = true
+
+    const loadMealPlan = async () => {
+      if (!isPremium) {
+        setMealPlan(null)
+        setMealPlanError(null)
+        setMealPlanLoading(false)
+        return
+      }
+
+      setMealPlanLoading(true)
+      setMealPlanError(null)
+
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
+
+        if (!session?.access_token) {
+          throw new Error('You must be signed in to load your daily meal plan.')
+        }
+
+        const todayKey = toDateKey(new Date())
+
+        const response = await fetch(`/api/support-meal-plan?date=${todayKey}`, {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        })
+
+        if (!response.ok) {
+          const payload = (await response.json().catch(() => ({}))) as { error?: string }
+          throw new Error(payload.error ?? 'Could not load your daily meal plan.')
+        }
+
+        const data = (await response.json()) as SupportMealPlan
+        if (!active) return
+        setMealPlan(data)
+      } catch (error) {
+        if (!active) return
+        console.error(error)
+        setMealPlanError(error instanceof Error ? error.message : 'Could not load your daily meal plan.')
+        setMealPlan(null)
+      } finally {
+        if (active) {
+          setMealPlanLoading(false)
+        }
+      }
+    }
+
+    void loadMealPlan()
+
+    return () => {
+      active = false
+    }
+  }, [isPremium, profile?.id])
 
   return (
     <div className="p-4 md:p-6 mt-3 md:mt-5 flex flex-col items-center">
@@ -469,27 +622,108 @@ const Support = () => {
 
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
         <section className="bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
-          <h3 className="text-lg font-semibold border-b border-green-200 pb-3">Sample Meals</h3>
-          {loadingGuide ? (
-            <div className="mt-4 space-y-2">
-              <div className="h-4 w-full animate-pulse rounded bg-green-100" />
-              <div className="h-4 w-10/12 animate-pulse rounded bg-green-100" />
-              <div className="h-4 w-9/12 animate-pulse rounded bg-green-100" />
-            </div>
+          <div className="flex items-center justify-between border-b border-green-200 pb-3">
+            <h3 className="text-lg font-semibold">Daily Meal Plan</h3>
+            <span className="rounded-full border border-green-200 bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-green-700">
+              {isPremium ? 'Premium' : 'Locked'}
+            </span>
+          </div>
+          {isPremium ? (
+            mealPlanLoading ? (
+              <div className="mt-4 space-y-3">
+                <div className="h-5 w-48 animate-pulse rounded bg-green-100" />
+                <div className="h-4 w-full animate-pulse rounded bg-green-100" />
+                <div className="h-24 w-full animate-pulse rounded-2xl bg-green-50" />
+                <div className="h-24 w-full animate-pulse rounded-2xl bg-green-50" />
+              </div>
+            ) : mealPlanError ? (
+              <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {mealPlanError}
+              </div>
+            ) : mealPlan ? (
+              <>
+                <p className="mt-3 text-xs uppercase tracking-[0.16em] text-green-700">{mealPlan.title}</p>
+                <p className="mt-2 text-sm leading-6 text-gray-700">{mealPlan.summary}</p>
+                <div className="mt-4 space-y-3">
+                  {mealPlan.meals.map((meal) => (
+                    <div key={`${meal.mealType}-${meal.name}`} className="rounded-2xl border border-green-200 bg-white/80 p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-base font-semibold text-gray-900">{meal.name}</p>
+                        <span className="rounded-full bg-green-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-green-800">
+                          {meal.mealType}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-gray-600">{meal.whyItFits}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 rounded-2xl border border-green-200 bg-green-50/70 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">How to use today&apos;s plan</p>
+                  <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-gray-700">
+                    {mealPlan.focusPoints.map((item) => (
+                      <li key={`focus-${item}`}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </>
+            ) : (
+              <p className="mt-4 text-sm text-gray-600">No meal plan available right now.</p>
+            )
           ) : (
-            <>
-              <p className="text-xs text-gray-600 mt-2">Examples only. Personal tolerance varies.</p>
-              <ul className="mt-3 list-disc pl-5 text-sm text-gray-700 space-y-2">
-                {activeGuide?.sampleMeals.map((meal) => (
-                  <li key={`meal-${meal}`}>{meal}</li>
+            <div className="mt-4 space-y-4">
+              {/* <div className="rounded-2xl border border-green-200 bg-white/80 p-4">
+                <p className="text-xs uppercase tracking-[0.16em] text-green-700">{LOCKED_MEAL_PLAN_PREVIEW.title}</p>
+                <p className="mt-2 text-sm leading-6 text-gray-700">{LOCKED_MEAL_PLAN_PREVIEW.summary}</p>
+              </div> */}
+
+              <div className="space-y-3">
+                {LOCKED_MEAL_PLAN_PREVIEW.meals.map((meal) => (
+                  <div key={`${meal.mealType}-${meal.name}`} className="rounded-2xl border border-green-200 bg-white/80 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-base font-semibold text-gray-900">{meal.name}</p>
+                      <span className="rounded-full bg-green-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-green-800">
+                        {meal.mealType}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-sm leading-6 text-gray-600">
+                      Premium turns this into a daily rotating plan built around your safe foods and condition.
+                    </p>
+                  </div>
                 ))}
-              </ul>
-            </>
+              </div>
+
+              <div className="rounded-2xl border border-dashed border-green-300 bg-green-50/70 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-green-800">
+                    <IconLock size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-semibold text-gray-950">Upgrade for a personalized daily plan</h4>
+                    <p className="mt-2 text-sm leading-6 text-gray-600">
+                      Premium refreshes meal ideas every day using your condition, dietary notes, and foods you&apos;ve already logged as safe, so you get more specific options instead of general starter guidance.
+                    </p>
+                    <Link
+                      href="/settings"
+                      className="mt-4 inline-flex items-center justify-center rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-green-700"
+                    >
+                      Upgrade your plan
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
         </section>
 
         <section className="bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
-          <h3 className="text-lg font-semibold border-b border-green-200 pb-3">Smart Substitutions</h3>
+          <div className="border-b border-green-200 pb-3">
+            <h3 className="text-lg font-semibold">Smart Substitutions</h3>
+            {!loadingGuide ? (
+              <p className="mt-2 text-sm text-gray-600">
+                Condition-aware swaps for <span className="font-medium text-gray-900">{displayCondition}</span>.
+              </p>
+            ) : null}
+          </div>
           {loadingGuide ? (
             <div className="mt-4 space-y-2">
               <div className="h-4 w-full animate-pulse rounded bg-green-100" />
@@ -497,14 +731,24 @@ const Support = () => {
               <div className="h-4 w-8/12 animate-pulse rounded bg-green-100" />
             </div>
           ) : (
-            <>
-              <p className="text-xs text-gray-600 mt-2">Use these swaps when a food pattern triggers symptoms.</p>
-              <ul className="mt-3 list-disc pl-5 text-sm text-gray-700 space-y-2">
-                {activeGuide?.substitutions.map((swap) => (
-                  <li key={`swap-${swap}`}>{swap}</li>
-                ))}
-              </ul>
-            </>
+            <div className="mt-4 space-y-3">
+              {substitutionCards.map((swap) => (
+                <div key={`${swap.from}-${swap.to}`} className="rounded-2xl border border-green-200 bg-white/80 p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">Swap from</p>
+                      <p className="mt-1 text-base font-semibold text-gray-900">{swap.from}</p>
+                    </div>
+                    <div className="hidden sm:block self-center text-sm font-semibold text-green-700">to</div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">Better fit</p>
+                      <p className="mt-1 text-base font-semibold text-gray-900">{swap.to}</p>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-gray-600">{swap.reason}</p>
+                </div>
+              ))}
+            </div>
           )}
         </section>
       </div>
