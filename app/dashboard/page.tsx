@@ -4,6 +4,7 @@ import { Avatar } from '@radix-ui/themes'
 import { IconBrain, IconChartBar, IconMoodSadDizzy, IconPoo, IconSoup, IconTrendingUp, IconUsersGroup } from '@tabler/icons-react'
 import Link from 'next/link'
 import AdSenseAd from '@/app/components/AdSenseAd'
+import MonthlyReportButton from '@/app/components/MonthlyReportButton'
 import { useProfile } from '@/src/context/ProfileContext'
 import useMeals from '@/src/context/TrackedMealsContext'
 import { supabase } from '@/lib/supabaseClient'
@@ -815,22 +816,24 @@ export default function DashboardPage() {
             Today is <span className="font-medium">{today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
           </p>
           {isPremium ? (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-green-700">History</span>
-              {availableRanges.map((range) => (
-                <button
-                  key={range.id}
-                  type="button"
-                  onClick={() => setSelectedRange(range.id)}
-                  className={`rounded-full px-3 py-2 text-xs font-semibold transition-all ${
-                    selectedRangeOption.id === range.id
-                      ? 'bg-green-600 text-white shadow-sm'
-                      : 'border border-green-200 bg-white text-green-800 hover:border-green-400 hover:bg-green-50'
-                  }`}
-                >
-                  {range.label}
-                </button>
-              ))}
+            <div className="flex flex-col items-start gap-3 md:items-end">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-[0.18em] text-green-700">History</span>
+                {availableRanges.map((range) => (
+                  <button
+                    key={range.id}
+                    type="button"
+                    onClick={() => setSelectedRange(range.id)}
+                    className={`rounded-full px-3 py-2 text-xs font-semibold transition-all ${
+                      selectedRangeOption.id === range.id
+                        ? 'bg-green-600 text-white shadow-sm'
+                        : 'border border-green-200 bg-white text-green-800 hover:border-green-400 hover:bg-green-50'
+                    }`}
+                  >
+                    {range.label}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="rounded-full border border-green-200 bg-white px-4 py-2 text-xs font-medium text-green-800">
@@ -952,14 +955,19 @@ export default function DashboardPage() {
       </div>
 
       <div className="w-full max-w-6xl mb-6 bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm">
-        <div className="flex items-center justify-between mb-3 border-b border-green-200 pb-3">
+        <div className="mb-3 flex flex-col gap-3 border-b border-green-200 pb-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
             <h2 className="text-xl font-semibold flex items-center gap-2">
               <IconTrendingUp size={20} />
               Summary Table
             </h2>
-          <span className="text-xs text-gray-600">
-            {chartWindowDays === 365 ? 'Monthly totals and averages' : formatRangeSummary(chartWindowDays)}
-          </span>
+            <span className="text-xs text-gray-600">
+              {chartWindowDays === 365 ? 'Monthly totals and averages' : formatRangeSummary(chartWindowDays)}
+            </span>
+          </div>
+          {isPremium ? (
+            <MonthlyReportButton className="self-start md:items-end" label="Download report" />
+          ) : null}
         </div>
 
         <div className="overflow-x-auto">
