@@ -577,11 +577,6 @@ const Support = () => {
             </p>
           </>
         )}
-        {!loadingGuide && dietaryRestriction && (
-          <p className="mt-2 text-xs text-gray-600">
-            Your profile dietary note: <span className="font-medium">{dietaryRestriction}</span>
-          </p>
-        )}
       </div>
 
       <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5 mb-5">

@@ -690,7 +690,7 @@ export default function AddMealPage() {
                     onChange={(e) => handleFoodQueryChange(e.target.value)}
                   />
                 </div>
-                <p className="text-xs text-gray-500">Search starts after 2 characters and uses your USDA API key on the server.</p>
+                <p className="text-xs text-gray-500">Search starts after 2 characters</p>
                 {foodQuery.trim().length > 0 && (
                   <button
                     type="button"
