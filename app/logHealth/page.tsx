@@ -18,6 +18,11 @@ const BRISTOL_TYPE_GUIDE = [
   { type: 7, label: 'Watery, no solid pieces', note: 'Often reflects diarrhea.' },
 ]
 
+type DeleteTarget =
+  | { kind: 'symptom'; id: string }
+  | { kind: 'bowel'; id: string }
+  | null
+
 function toLocalDateKey(d: Date): string {
   const year = d.getFullYear()
   const month = String(d.getMonth() + 1).padStart(2, '0')
@@ -68,6 +73,7 @@ const LogHealth = () => {
   const [symptomError, setSymptomError] = useState<string | null>(null)
   const [editingSymptomId, setEditingSymptomId] = useState<string | null>(null)
   const [deletingSymptomId, setDeletingSymptomId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null)
 
   const [bowelOccurredAt, setBowelOccurredAt] = useState('')
   const [bowelBristolType, setBowelBristolType] = useState('')
@@ -225,9 +231,6 @@ const LogHealth = () => {
     setSymptomError(null)
   }
   const handleDeleteSymptom = async (id: string) => {
-    const confirmed = window.confirm('Delete this symptom entry?')
-    if (!confirmed) return
-
     setDeletingSymptomId(id)
     setSymptomError(null)
 
@@ -320,9 +323,6 @@ const LogHealth = () => {
     setBowelError(null)
   }
   const handleDeleteBowel = async (id: string) => {
-    const confirmed = window.confirm('Delete this bowel entry?')
-    if (!confirmed) return
-
     setDeletingBowelId(id)
     setBowelError(null)
 
@@ -339,6 +339,18 @@ const LogHealth = () => {
 
     await refreshHealth({ logDate: selectedDateKey })
     setDeletingBowelId(null)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return
+
+    if (deleteTarget.kind === 'symptom') {
+      await handleDeleteSymptom(deleteTarget.id)
+    } else {
+      await handleDeleteBowel(deleteTarget.id)
+    }
+
+    setDeleteTarget(null)
   }
   const handleBowelSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -731,7 +743,7 @@ const LogHealth = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDeleteSymptom(s.id)}
+                      onClick={() => setDeleteTarget({ kind: 'symptom', id: s.id })}
                       disabled={deletingSymptomId === s.id}
                       className="text-xs rounded-lg border border-red-200 bg-white px-2 py-1 text-red-700 hover:border-red-400 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     >
@@ -855,7 +867,7 @@ const LogHealth = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleDeleteBowel(b.id)}
+                      onClick={() => setDeleteTarget({ kind: 'bowel', id: b.id })}
                       disabled={deletingBowelId === b.id}
                       className="text-xs rounded-lg border border-red-200 bg-white px-2 py-1 text-red-700 hover:border-red-400 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     >
@@ -875,6 +887,42 @@ const LogHealth = () => {
             description="A sponsored placement below your health logging workspace."
           />
         </div>
+
+        {deleteTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/40 px-4 backdrop-blur-sm">
+            <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-green-200 bg-white shadow-xl">
+              <div className="border-b border-green-100 bg-linear-to-r from-green-50 via-white to-emerald-50 px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">Confirm Delete</p>
+                <h2 className="mt-1 text-lg font-semibold text-gray-900">
+                  {deleteTarget.kind === 'symptom' ? 'Delete this symptom entry?' : 'Delete this bowel entry?'}
+                </h2>
+              </div>
+              <div className="space-y-4 px-5 py-5">
+                <p className="text-sm leading-6 text-gray-600">
+                  This will permanently remove the entry from this day&apos;s log.
+                </p>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteTarget(null)}
+                    disabled={Boolean(deletingSymptomId || deletingBowelId)}
+                    className="inline-flex items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-all hover:border-green-400 hover:text-green-700 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void confirmDelete()}
+                    disabled={Boolean(deletingSymptomId || deletingBowelId)}
+                    className="inline-flex items-center justify-center rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700 transition-all hover:border-red-400 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
+                  >
+                    {deletingSymptomId || deletingBowelId ? 'Deleting...' : 'Delete'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
