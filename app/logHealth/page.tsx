@@ -4,9 +4,19 @@ import { useProfile } from '@/src/context/ProfileContext'
 import { Calendar } from '../components/ui/calendar'
 import React, { useEffect, useMemo, useState } from 'react'
 import { RadioGroup, Separator } from '@radix-ui/themes'
-import { IconMoodAnnoyed, IconMoodEmpty, IconMoodHappy, IconMoodSad, IconMoodSmile } from '@tabler/icons-react'
+import { IconInfoCircle, IconMoodAnnoyed, IconMoodEmpty, IconMoodHappy, IconMoodSad, IconMoodSmile } from '@tabler/icons-react'
 import { normalizeGenderValue } from '@/src/shared/profileGender'
 import AdSenseAd from '@/app/components/AdSenseAd'
+
+const BRISTOL_TYPE_GUIDE = [
+  { type: 1, label: 'Separate hard lumps', note: 'Often suggests constipation.' },
+  { type: 2, label: 'Sausage-shaped but lumpy', note: 'Still on the constipated side.' },
+  { type: 3, label: 'Like a sausage with cracks', note: 'Usually fairly typical.' },
+  { type: 4, label: 'Smooth, soft sausage or snake', note: 'Often considered the ideal range.' },
+  { type: 5, label: 'Soft blobs with clear edges', note: 'Can mean things are moving a bit fast.' },
+  { type: 6, label: 'Fluffy pieces with ragged edges', note: 'Leaning toward loose stool.' },
+  { type: 7, label: 'Watery, no solid pieces', note: 'Often reflects diarrhea.' },
+]
 
 function toLocalDateKey(d: Date): string {
   const year = d.getFullYear()
@@ -727,7 +737,24 @@ const LogHealth = () => {
 
           <form onSubmit={handleBowelSubmit} className="flex flex-col bg-white border border-green-300 bg-linear-to-br from-white to-green-50/60 p-5 rounded-2xl shadow-sm space-y-3 h-full">
             <div className="flex items-center justify-between border-b border-green-200 pb-3">
-              <h2 className="text-xl font-semibold leading-tight">Bowel Entries</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-semibold leading-tight">Bowel Entries</h2>
+                <details className="group relative">
+                  <summary className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-full border border-green-200 bg-white text-green-700 shadow-sm transition-all hover:border-green-400 hover:bg-green-50">
+                    <IconInfoCircle size={18} />
+                  </summary>
+                  <div className="absolute left-0 top-full z-20 mt-2 w-[16.5rem] rounded-xl border border-green-200 bg-white p-3.5 shadow-lg sm:w-[18.5rem]">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">Bristol Stool Chart</p>
+                    <div className="mt-2.5 space-y-1.5 text-sm leading-5 text-gray-700">
+                      {BRISTOL_TYPE_GUIDE.map((item) => (
+                        <p key={item.type}>
+                          <span className="font-semibold text-gray-900">Type {item.type}:</span> {item.label}. {item.note}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                </details>
+              </div>
               <button
                 type="submit"
                 disabled={!isAuthenticated || bowelSubmitting}
