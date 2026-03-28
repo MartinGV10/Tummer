@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Script from 'next/script'
 import { useProfile } from '@/src/context/ProfileContext'
 
@@ -29,8 +29,9 @@ export default function AdSenseAd({
 }: AdSenseAdProps) {
   const { profile, loading, isAuthenticated } = useProfile()
   const adRef = useRef<HTMLModElement | null>(null)
+  const hasInitializedRef = useRef(false)
   const isPremium = Boolean(profile?.is_premium)
-  const shouldHideAd = (loading && isAuthenticated) || isPremium
+  const [shouldRenderAd, setShouldRenderAd] = useState(() => !isAuthenticated)
 
   const wrapperClassName =
     variant === 'community'
@@ -50,7 +51,17 @@ export default function AdSenseAd({
   const bodyClassName = variant === 'community' ? 'min-h-[140px] px-5 py-5 sm:px-6' : 'min-h-[150px] px-4 py-4'
 
   useEffect(() => {
-    if (shouldHideAd) {
+    // Keep the ad mounted through transient auth/profile refreshes so
+    // browser tab focus changes do not cause AdSense to remount.
+    if (loading && isAuthenticated) {
+      return
+    }
+
+    setShouldRenderAd(!isPremium)
+  }, [loading, isAuthenticated, isPremium])
+
+  useEffect(() => {
+    if (!shouldRenderAd || hasInitializedRef.current) {
       return
     }
 
@@ -60,12 +71,13 @@ export default function AdSenseAd({
       if (current.getAttribute('data-adsbygoogle-status')) return
 
       ;(window.adsbygoogle = window.adsbygoogle || []).push({})
+      hasInitializedRef.current = true
     } catch (error) {
       console.error('AdSense ad failed to initialize:', error)
     }
-  }, [slot, loading, isAuthenticated, isPremium])
+  }, [slot, shouldRenderAd])
 
-  if (shouldHideAd) {
+  if (!shouldRenderAd) {
     return null
   }
 
