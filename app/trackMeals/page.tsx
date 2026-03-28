@@ -2,6 +2,7 @@
 import React, { useState } from 'react'
 import Link from 'next/link'
 import useMeals, { type Meal } from '@/src/context/TrackedMealsContext'
+import { useProfile } from '@/src/context/ProfileContext'
 import { formatMacroValue, sumMealMacros } from '@/src/shared/meals'
 import { Calendar } from '../components/ui/calendar'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
@@ -15,9 +16,11 @@ function formatLoggedAmount(quantity: number, unit: string | null) {
 
 export default function TrackMeals() {
   const { meals, loading, error, deleteMeal } = useMeals()
+  const { profile } = useProfile()
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [open, setOpen] = useState(false)
   const router = useRouter()
+  const isPremium = Boolean(profile?.is_premium)
 
   const mealSections: Array<{ key: Meal['meal_type']; label: string }> = [
     { key: 'breakfast', label: 'Breakfast' },
@@ -213,6 +216,9 @@ export default function TrackMeals() {
                               </div>
                               <p className="text-xs text-gray-600">
                                 {formatMacroValue(totals.calories, 0)} cal
+                                {isPremium
+                                  ? ` | ${formatMacroValue(totals.protein_g)}g protein | ${formatMacroValue(totals.carbs_g)}g carbs | ${formatMacroValue(totals.fat_g)}g fat`
+                                  : ''}
                               </p>
                             </div>
                           )}

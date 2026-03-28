@@ -501,7 +501,7 @@ const LogHealth = () => {
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="flex flex-1 flex-col gap-4">
               <div className="flex items-center justify-between gap-4">
                 <p className="text-sm font-medium text-gray-800">How are you feeling?</p>
                 <div className="flex items-center space-x-2">
@@ -586,13 +586,13 @@ const LogHealth = () => {
                   </div>
                 </div>
               </div>
-              <div>
+              <div className="flex flex-1 flex-col">
                 <p className="text-sm font-medium mb-1">General notes</p>
                 <textarea
                   value={notes}
-                  rows={4}
+                  rows={8}
                   placeholder="Optional"
-                  className="w-full bg-gray-50 rounded-xl border border-green-300 shadow-sm px-3 py-2 text-sm resize-none"
+                  className="min-h-32 w-full flex-1 bg-gray-50 rounded-xl border border-green-300 shadow-sm px-3 py-2 text-sm resize-none"
                   onChange={(e) => setNotes(e.target.value)}
                 />
               </div>
@@ -651,6 +651,14 @@ const LogHealth = () => {
                   className="w-full bg-gray-50 rounded-xl border border-green-300 shadow-sm px-3 py-2 text-sm resize-none"
                   onChange={(e) => setMedicationChanges(e.target.value)}
                 />
+              </div>
+
+              <div className="rounded-2xl border border-green-200 bg-green-50/70 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">Helpful Context To Log</p>
+                <ul className="mt-3 space-y-3 text-sm leading-6 text-gray-700">
+                  <li>If medication changed today, note the dose, timing, or what was started or stopped.</li>
+                  <li>Use notes for unusual context like travel, poor sleep, stress spikes, or eating differently than usual.</li>
+                </ul>
               </div>
 
             </div>
