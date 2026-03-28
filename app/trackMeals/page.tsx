@@ -6,6 +6,7 @@ import { formatMacroValue, sumMealMacros } from '@/src/shared/meals'
 import { Calendar } from '../components/ui/calendar'
 import { IconPencil, IconTrash } from '@tabler/icons-react'
 import { useRouter } from 'next/navigation'
+import AdSenseAd from '@/app/components/AdSenseAd'
 
 function formatLoggedAmount(quantity: number, unit: string | null) {
   const amount = formatMacroValue(quantity, quantity % 1 === 0 ? 0 : 2)
@@ -227,6 +228,14 @@ export default function TrackMeals() {
               </section>
             )
           })}
+
+          <div className="pt-2">
+            <AdSenseAd
+              slot="4563997002"
+              label="Suggested"
+              description="A sponsored placement below your meal history."
+            />
+          </div>
         </div>
       )}
     </div>

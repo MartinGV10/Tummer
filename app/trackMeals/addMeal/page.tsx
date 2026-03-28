@@ -5,6 +5,7 @@ import { IconPlus, IconSearch, IconTrash } from '@tabler/icons-react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import React, { useDeferredValue, useEffect, useMemo, useState, useTransition } from 'react'
+import AdSenseAd from '@/app/components/AdSenseAd'
 
 const MEAL_TYPE_OPTIONS = [
   { value: 'breakfast', label: 'Breakfast', description: 'Morning meal to start your day.' },
@@ -923,6 +924,13 @@ export default function AddMealPage() {
                 <li>Template reuse now carries food selections too.</li>
               </ul>
             </div>
+
+            <AdSenseAd
+              slot="4563997002"
+              label="Suggested"
+              description="A small sponsored placement that stays out of your meal logging flow."
+              className="mt-2"
+            />
           </aside>
         </div>
 

@@ -1,4 +1,5 @@
 'use client'
+import AdSenseAd from '@/app/components/AdSenseAd'
 import { supabase } from '@/lib/supabaseClient'
 import useLogged, { type Food } from '@/src/context/LoggedFoodContext'
 import Link from 'next/link'
@@ -332,6 +333,13 @@ const AddFood = () => {
                 <li>Keep notes short and focused on context and quantity.</li>
               </ul>
             </div>
+
+            <AdSenseAd
+              slot="4563997002"
+              label="Suggested"
+              description="A small sponsored placement that stays out of your food logging flow."
+              className="mt-2"
+            />
           </aside>
         </div>
 

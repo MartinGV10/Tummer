@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import Script from 'next/script'
+import { useProfile } from '@/src/context/ProfileContext'
 
 declare global {
   interface Window {
@@ -26,7 +27,10 @@ export default function AdSenseAd({
   description = 'Advertisement',
   variant = 'default',
 }: AdSenseAdProps) {
+  const { profile, loading, isAuthenticated } = useProfile()
   const adRef = useRef<HTMLModElement | null>(null)
+  const isPremium = Boolean(profile?.is_premium)
+  const shouldHideAd = (loading && isAuthenticated) || isPremium
 
   const wrapperClassName =
     variant === 'community'
@@ -46,6 +50,10 @@ export default function AdSenseAd({
   const bodyClassName = variant === 'community' ? 'min-h-[140px] px-5 py-5 sm:px-6' : 'min-h-[150px] px-4 py-4'
 
   useEffect(() => {
+    if (shouldHideAd) {
+      return
+    }
+
     try {
       const current = adRef.current
       if (!current) return
@@ -55,7 +63,11 @@ export default function AdSenseAd({
     } catch (error) {
       console.error('AdSense ad failed to initialize:', error)
     }
-  }, [slot])
+  }, [slot, loading, isAuthenticated, isPremium])
+
+  if (shouldHideAd) {
+    return null
+  }
 
   return (
     <div className={`${wrapperClassName} ${className}`.trim()}>

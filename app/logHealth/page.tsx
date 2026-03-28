@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { RadioGroup, Separator } from '@radix-ui/themes'
 import { IconMoodAnnoyed, IconMoodEmpty, IconMoodHappy, IconMoodSad, IconMoodSmile } from '@tabler/icons-react'
 import { normalizeGenderValue } from '@/src/shared/profileGender'
+import AdSenseAd from '@/app/components/AdSenseAd'
 
 function toLocalDateKey(d: Date): string {
   const year = d.getFullYear()
@@ -830,6 +831,14 @@ const LogHealth = () => {
               ))}
             </div>
           </form>
+        </div>
+
+        <div className="w-full max-w-6xl pt-2">
+          <AdSenseAd
+            slot="4563997002"
+            label="Suggested"
+            description="A sponsored placement below your health logging workspace."
+          />
         </div>
       </div>
     </div>
