@@ -747,6 +747,7 @@ function buildFallbackDrivers(analytics: ReturnType<typeof buildAnalytics>): str
 function fallbackInsight(payload: DashboardAiPayload): DashboardAiResult {
   const analytics = buildAnalytics(payload)
   const windowLabel = describeAnalysisWindow(payload.analysisDays)
+  const isPremiumUser = isPremiumAnalysis(payload.analysisDays)
   const drivers = buildFallbackDrivers(analytics)
   let insight = ''
   let alert = ''
@@ -784,35 +785,55 @@ function fallbackInsight(payload: DashboardAiPayload): DashboardAiResult {
 
   if (analytics.conditionFoodFlags.latest) {
     const recent = analytics.conditionFoodFlags.latest
-    alert = `Because "${recent.matched_food}" is often less well tolerated for ${analytics.profileContext.condition ?? 'your condition'}, try ${recent.alternative} next and watch the next 48 to 72 hours.`
+    alert = isPremiumUser
+      ? `Next step: skip "${recent.matched_food}" for 2 to 3 days, use ${recent.alternative} instead, and check whether symptoms, urgency, or bowel frequency settle within 48 to 72 hours.`
+      : `Because "${recent.matched_food}" is often less well tolerated for ${analytics.profileContext.condition ?? 'your condition'}, try ${recent.alternative} next and watch the next 48 to 72 hours.`
   } else if (analytics.genericFoodFlags.latest) {
     const recent = analytics.genericFoodFlags.latest
-    alert = `Try swapping "${recent.matched_food}" for ${recent.alternative} in the next few days and compare how meals and symptoms feel.`
+    alert = isPremiumUser
+      ? `Next step: replace "${recent.matched_food}" with ${recent.alternative} at your next similar meal, then log symptoms and bowel changes for the following 2 to 3 days.`
+      : `Try swapping "${recent.matched_food}" for ${recent.alternative} in the next few days and compare how meals and symptoms feel.`
   } else if (analytics.triggerMeals.latest && payload.symptomsToday > 0) {
     const recent = analytics.triggerMeals.latest
-    alert = `Because "${recent.trigger_food}" was recently logged, try reducing or avoiding it for 2 to 3 days and monitor whether symptoms and bowel activity improve.`
+    alert = isPremiumUser
+      ? `Action: avoid "${recent.trigger_food}" for the next 2 to 3 days, keep meal names detailed, and check whether symptom count, urgency, or bowel frequency drops.`
+      : `Because "${recent.trigger_food}" was recently logged, try reducing or avoiding it for 2 to 3 days and monitor whether symptoms and bowel activity improve.`
   } else if (payload.symptomsToday >= 2 && analytics.weekly.symptomBowelOverlapDays >= 1) {
-    alert = `Today looks more active than usual. Compare today's symptoms with bowel activity, sleep, and stress to see whether this matches your other higher-symptom days.`
+    alert = isPremiumUser
+      ? `Action today: review bowel frequency, Bristol type, sleep, and stress from your higher-symptom days, then note which one changed most before the next flare.`
+      : `Today looks more active than usual. Compare today's symptoms with bowel activity, sleep, and stress to see whether this matches your other higher-symptom days.`
   } else if (analytics.weekly.symptomTrend === 'up') {
-    alert = `Symptoms are rising across ${windowLabel}. Watch whether the next 2 to 3 days follow the same pattern, especially around sleep, stress, and bowel activity.`
+    alert = isPremiumUser
+      ? `Symptoms are rising across ${windowLabel}. For the next 3 days, keep meals simpler, log sleep and stress daily, and check whether symptom counts stay elevated or begin to ease.`
+      : `Symptoms are rising across ${windowLabel}. Watch whether the next 2 to 3 days follow the same pattern, especially around sleep, stress, and bowel activity.`
   } else if (analytics.bowelDetails.bloodPresentCount > 0) {
-    alert = `Blood was logged in recent bowel entries. Review timing, stool pattern, and associated notes, and follow your clinician's guidance if this is new or worsening.`
+    alert = isPremiumUser
+      ? `Action: review the entries with blood, note timing, Bristol type, and associated meals or symptoms, and follow your clinician's plan promptly if this is new or worsening.`
+      : `Blood was logged in recent bowel entries. Review timing, stool pattern, and associated notes, and follow your clinician's guidance if this is new or worsening.`
   } else if (analytics.bowelDetails.mucusPresentCount > 0) {
-    alert = `Mucus was logged in recent bowel entries. Watch whether it clusters with symptoms, urgency, Bristol changes, or specific meals over the next few days.`
+    alert = isPremiumUser
+      ? `Next step: mark which meals and bowel entries include mucus over the next few days and check whether it lines up with urgency, Bristol shifts, or symptom spikes.`
+      : `Mucus was logged in recent bowel entries. Watch whether it clusters with symptoms, urgency, Bristol changes, or specific meals over the next few days.`
   } else if (
     analytics.factors.avgSleepOnSymptomDays !== null &&
     analytics.factors.avgSleepOnQuietDays !== null &&
     analytics.factors.avgSleepOnSymptomDays + 0.5 < analytics.factors.avgSleepOnQuietDays
   ) {
-    alert = `Lower-sleep days appear to be worse days. Track whether improving sleep over the next few days changes symptom frequency.`
+    alert = isPremiumUser
+      ? `Action: aim for a steadier sleep window over the next 3 nights and log symptoms each morning to see whether lower-sleep days are driving the pattern.`
+      : `Lower-sleep days appear to be worse days. Track whether improving sleep over the next few days changes symptom frequency.`
   } else if (
     analytics.factors.avgStressOnSymptomDays !== null &&
     analytics.factors.avgStressOnQuietDays !== null &&
     analytics.factors.avgStressOnSymptomDays >= analytics.factors.avgStressOnQuietDays + 0.5
   ) {
-    alert = `Stress looks higher on symptom days. Watch whether symptoms ease on lower-stress days before treating the pattern as random.`
+    alert = isPremiumUser
+      ? `Next step: flag your highest-stress days this week and compare them with symptom timing so you can tell whether stress reduction should be part of your plan.`
+      : `Stress looks higher on symptom days. Watch whether symptoms ease on lower-stress days before treating the pattern as random.`
   } else {
-    alert = `Keep logging daily so the app can better connect symptoms with sleep, stress, hydration, bowel changes, flare days, and other repeating context.`
+    alert = isPremiumUser
+      ? 'Action: keep daily logs detailed for the next few days, especially meal names, bowel changes, sleep, stress, and notes, so the next alert can point to a tighter pattern.'
+      : `Keep logging daily so the app can better connect symptoms with sleep, stress, hydration, bowel changes, flare days, and other repeating context.`
   }
 
   return {
@@ -897,7 +918,11 @@ function buildFinalAlert({
   return normalizedAlert
 }
 
-function buildSystemPrompt(windowLabel: string): string {
+function isPremiumAnalysis(days?: number): boolean {
+  return days === 14
+}
+
+function buildSystemPrompt(windowLabel: string, isPremiumUser: boolean): string {
   return [
     'You are an insight engine for a premium gut-health tracking app.',
     'You analyze food-activity volume, symptom logs, bowel logs, and daily wellness factors to produce highly specific, practical dashboard insights.',
@@ -921,6 +946,15 @@ function buildSystemPrompt(windowLabel: string): string {
     '- Do not add generic medical disclaimers.',
     '- Keep `insight` at or under 460 characters.',
     '- Keep `alert` at or under 260 characters.',
+    ...(isPremiumUser
+      ? [
+          '- For `alert`, prioritize a short action plan over a summary.',
+          '- Tell the user exactly what to change, implement, or check next based on the pattern.',
+          '- Prefer concrete instructions with a timeframe, such as what to do today, for the next 2 to 3 days, or at the next meal.',
+          '- When the data supports it, name the exact food, behavior, symptom pattern, or metric to review.',
+          '- Avoid vague phrasing like "watch this" or "monitor trends" unless you also say what specific variable to track and what change to make.',
+        ]
+      : []),
     '',
     'If trigger-food exposures are present, mention them directly by food name and timing when relevant.',
     'If recent meals include foods that are generally poor fits for the user condition, mention those even when the user has not manually labeled them as triggers.',
@@ -931,7 +965,7 @@ function buildSystemPrompt(windowLabel: string): string {
   ].join('\n')
 }
 
-function buildUserPrompt(windowLabel: string): string {
+function buildUserPrompt(windowLabel: string, isPremiumUser: boolean): string {
   return [
     `Analyze this dashboard data from ${windowLabel} and produce the most useful insight for the user.`,
     '',
@@ -946,7 +980,13 @@ function buildUserPrompt(windowLabel: string): string {
     '- explain what changed',
     '- explain what it may be linked to',
     '- explain why it matters now',
-    '- tell the user what to watch next',
+    ...(isPremiumUser
+      ? [
+          '- tell the user the clearest next action to take',
+          '- include at least one specific behavior change, logging check, or food swap in the alert',
+          '- make the alert read like a concrete next step, not a general observation',
+        ]
+      : ['- tell the user what to watch next']),
     '- keep the insight concise (max 460 chars) and alert concise (max 260 chars)',
     '- use bowel-entry details like Bristol type, blood, mucus, urgency, and note text when they strengthen the conclusion',
     '- consider condition-specific foods that are commonly best limited even if the user never marked them as triggers',
@@ -970,6 +1010,7 @@ export async function generateDashboardInsights(
 
   const analytics = buildAnalytics(payload)
   const windowLabel = describeAnalysisWindow(payload.analysisDays)
+  const isPremiumUser = isPremiumAnalysis(payload.analysisDays)
   const model = process.env.OPENAI_MODEL ?? 'gpt-4.1-mini'
 
   try {
@@ -981,7 +1022,7 @@ export async function generateDashboardInsights(
           content: [
             {
               type: 'input_text',
-              text: buildSystemPrompt(windowLabel),
+              text: buildSystemPrompt(windowLabel, isPremiumUser),
             },
           ],
         },
@@ -990,7 +1031,7 @@ export async function generateDashboardInsights(
           content: [
             {
               type: 'input_text',
-              text: `${buildUserPrompt(windowLabel)}\n\nDATA:\n${JSON.stringify({
+              text: `${buildUserPrompt(windowLabel, isPremiumUser)}\n\nDATA:\n${JSON.stringify({
                 analysisDays: payload.analysisDays,
                 today: analytics.today,
                 weekly: analytics.weekly,
