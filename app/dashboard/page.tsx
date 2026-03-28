@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
 import { Avatar } from '@radix-ui/themes'
-import { IconBrain, IconChartBar, IconMoodSadDizzy, IconPoo, IconSoup, IconTrendingUp, IconUsersGroup } from '@tabler/icons-react'
+import { IconBrain, IconChartBar, IconLock, IconMoodSadDizzy, IconPoo, IconSoup, IconTrendingUp, IconUsersGroup } from '@tabler/icons-react'
 import Link from 'next/link'
 import AdSenseAd from '@/app/components/AdSenseAd'
 import MonthlyReportButton from '@/app/components/MonthlyReportButton'
@@ -9,7 +9,7 @@ import { useProfile } from '@/src/context/ProfileContext'
 import useMeals from '@/src/context/TrackedMealsContext'
 import { supabase } from '@/lib/supabaseClient'
 import { DASHBOARD_AI_EMPTY_STATE, hasDashboardInsightInputs } from '@/src/shared/dashboardAi'
-import { getMealSearchText } from '@/src/shared/meals'
+import { formatMacroValue, getMealSearchText, sumMealMacros } from '@/src/shared/meals'
 import { normalizeGenderValue } from '@/src/shared/profileGender'
 
 type DailyLogRow = {
@@ -222,6 +222,13 @@ function findTriggerMatch(mealName: string, triggerFoods: string[]): string | nu
   return null
 }
 
+const LOCKED_MACRO_PREVIEW = [
+  { label: 'Calories', value: '1,860', unit: 'cal' },
+  { label: 'Protein', value: '128', unit: 'g' },
+  { label: 'Carbs', value: '174', unit: 'g' },
+  { label: 'Fat', value: '62', unit: 'g' },
+]
+
 export default function DashboardPage() {
   const { profile } = useProfile()
   const { meals, loading: loadingMeals } = useMeals()
@@ -417,7 +424,22 @@ export default function DashboardPage() {
     }
   }, [rangeStart, todayKey, profile?.reason])
 
-  const mealsToday = useMemo(() => meals.filter((m) => isSameLocalDay(m.eaten_at, today)).length, [meals, today])
+  const mealsLoggedToday = useMemo(
+    () => meals.filter((meal) => isSameLocalDay(meal.eaten_at, today)),
+    [meals, today]
+  )
+
+  const mealsToday = useMemo(() => mealsLoggedToday.length, [mealsLoggedToday])
+
+  const dailyMacroTotals = useMemo(
+    () => sumMealMacros(mealsLoggedToday.flatMap((meal) => meal.meal_items)),
+    [mealsLoggedToday]
+  )
+
+  const foodsLoggedToday = useMemo(
+    () => mealsLoggedToday.reduce((total, meal) => total + meal.meal_items.length, 0),
+    [mealsLoggedToday]
+  )
 
   const mealsByFetchedDay = useMemo(() => {
     const out: Record<string, number> = {}
@@ -863,6 +885,134 @@ export default function DashboardPage() {
           </p>
         </div>
       </div>
+
+      <section className="w-full max-w-6xl mb-6 rounded-2xl border border-green-300 bg-linear-to-br from-white via-green-50/50 to-emerald-50/70 p-5 shadow-sm">
+        <div className="mb-4 flex flex-col gap-3 border-b border-green-200 pb-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-green-700">Daily Macros</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-gray-950">Nutrition totals from today&apos;s logged foods</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-600">
+              Keep weight goals and gut-health tracking in one place by turning your meal logs into daily calorie and macro totals.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+            <span className="rounded-full border border-green-200 bg-white px-3 py-1.5 font-medium">
+              {isDashboardDataLoading ? 'Meals loading...' : `${mealsToday} meal${mealsToday === 1 ? '' : 's'} today`}
+            </span>
+            <span className="rounded-full border border-green-200 bg-white px-3 py-1.5 font-medium">
+              {isDashboardDataLoading ? 'Foods loading...' : `${foodsLoggedToday} food item${foodsLoggedToday === 1 ? '' : 's'} logged`}
+            </span>
+          </div>
+        </div>
+
+        {isPremium ? (
+          <>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <div className="rounded-2xl border border-green-200 bg-white/90 p-4 shadow-sm">
+                <p className="text-sm text-gray-600">Calories</p>
+                <p className="mt-2 text-3xl font-semibold text-gray-950">
+                  {isDashboardDataLoading ? '-' : formatMacroValue(dailyMacroTotals.calories, 0)}
+                </p>
+                <p className="mt-1 text-xs uppercase tracking-[0.18em] text-gray-500">calories today</p>
+              </div>
+              <div className="rounded-2xl border border-green-200 bg-white/90 p-4 shadow-sm">
+                <p className="text-sm text-gray-600">Protein</p>
+                <p className="mt-2 text-3xl font-semibold text-gray-950">
+                  {isDashboardDataLoading ? '-' : `${formatMacroValue(dailyMacroTotals.protein_g)}g`}
+                </p>
+                <p className="mt-1 text-xs uppercase tracking-[0.18em] text-gray-500">daily total</p>
+              </div>
+              <div className="rounded-2xl border border-green-200 bg-white/90 p-4 shadow-sm">
+                <p className="text-sm text-gray-600">Carbs</p>
+                <p className="mt-2 text-3xl font-semibold text-gray-950">
+                  {isDashboardDataLoading ? '-' : `${formatMacroValue(dailyMacroTotals.carbs_g)}g`}
+                </p>
+                <p className="mt-1 text-xs uppercase tracking-[0.18em] text-gray-500">daily total</p>
+              </div>
+              <div className="rounded-2xl border border-green-200 bg-white/90 p-4 shadow-sm">
+                <p className="text-sm text-gray-600">Fat</p>
+                <p className="mt-2 text-3xl font-semibold text-gray-950">
+                  {isDashboardDataLoading ? '-' : `${formatMacroValue(dailyMacroTotals.fat_g)}g`}
+                </p>
+                <p className="mt-1 text-xs uppercase tracking-[0.18em] text-gray-500">daily total</p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-green-200 bg-white/80 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Fiber</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">
+                  {isDashboardDataLoading ? '-' : `${formatMacroValue(dailyMacroTotals.fiber_g)}g`}
+                </p>
+              </div>
+              <div className="rounded-xl border border-green-200 bg-white/80 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Sugar</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">
+                  {isDashboardDataLoading ? '-' : `${formatMacroValue(dailyMacroTotals.sugar_g)}g`}
+                </p>
+              </div>
+              <div className="rounded-xl border border-green-200 bg-white/80 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Sodium</p>
+                <p className="mt-1 text-lg font-semibold text-gray-900">
+                  {isDashboardDataLoading ? '-' : `${formatMacroValue(dailyMacroTotals.sodium_mg, 0)}mg`}
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-4 text-sm text-gray-600">
+              These totals update from the foods you log, so you can track calories and macros for body-weight goals without leaving Tummer.
+            </p>
+          </>
+        ) : (
+          <div className="relative overflow-hidden rounded-2xl border border-dashed border-green-300 bg-white/80 p-4">
+            <div className="pointer-events-none space-y-4 opacity-45 blur-[2px] select-none">
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+                {LOCKED_MACRO_PREVIEW.map((item) => (
+                  <div key={item.label} className="rounded-2xl border border-green-200 bg-white p-4 shadow-sm">
+                    <p className="text-sm text-gray-600">{item.label}</p>
+                    <p className="mt-2 text-3xl font-semibold text-gray-950">
+                      {item.value}
+                      <span className="ml-1 text-lg font-medium text-gray-500">{item.unit}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-green-200 bg-white px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Fiber</p>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">24g</p>
+                </div>
+                <div className="rounded-xl border border-green-200 bg-white px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Sugar</p>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">41g</p>
+                </div>
+                <div className="rounded-xl border border-green-200 bg-white px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Sodium</p>
+                  <p className="mt-1 text-lg font-semibold text-gray-900">2,180mg</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="absolute inset-0 flex items-center justify-center bg-white/65 p-5">
+              <div className="max-w-md rounded-2xl border border-green-200 bg-white px-5 py-4 text-center shadow-lg">
+                <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-green-100 text-green-800">
+                  <IconLock size={20} />
+                </div>
+                <h3 className="mt-3 text-lg font-semibold text-gray-950">Upgrade to unlock daily macro tracking</h3>
+                <p className="mt-2 text-sm leading-6 text-gray-600">
+                  Premium shows your real daily calories, protein, carbs, fat, and more from the foods you&apos;ve logged.
+                </p>
+                <Link
+                  href="/settings"
+                  className="mt-4 inline-flex items-center justify-center rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-green-700"
+                >
+                  Upgrade your plan
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
 
       <div className="w-full max-w-6xl mb-6">
         <AdSenseAd slot="4563997002" />
