@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
 
   const today = normalizeDateParam(req.nextUrl.searchParams.get('date')) ?? new Date().toISOString().slice(0, 10)
 
-  const [profileRes, safeFoodsRes] = await Promise.all([
+  const [profileRes, safeFoodsRes, triggerFoodsRes, dailyLogRes] = await Promise.all([
     supabaseAdmin
       .from('profiles')
       .select('condition_id, reason')
@@ -50,6 +50,17 @@ export async function GET(req: NextRequest) {
       .select('name')
       .eq('user_id', authResult.userId)
       .eq('status', 'safe'),
+    supabaseAdmin
+      .from('user_foods')
+      .select('name')
+      .eq('user_id', authResult.userId)
+      .eq('status', 'trigger'),
+    supabaseAdmin
+      .from('daily_logs')
+      .select('period_day')
+      .eq('user_id', authResult.userId)
+      .eq('log_date', today)
+      .maybeSingle<{ period_day: boolean | null }>(),
   ])
 
   if (profileRes.error) {
@@ -58,6 +69,10 @@ export async function GET(req: NextRequest) {
 
   if (safeFoodsRes.error) {
     return NextResponse.json({ error: 'Unable to load safe foods for meal planning' }, { status: 500 })
+  }
+
+  if (triggerFoodsRes.error || dailyLogRes.error) {
+    return NextResponse.json({ error: 'Unable to load meal-plan preferences' }, { status: 500 })
   }
 
   let conditionName: string | null = null
@@ -76,8 +91,12 @@ export async function GET(req: NextRequest) {
   const safeFoods = (safeFoodsRes.data ?? [])
     .map((row) => (typeof row.name === 'string' ? row.name.trim() : ''))
     .filter(Boolean)
+  const triggerFoods = (triggerFoodsRes.data ?? [])
+    .map((row) => (typeof row.name === 'string' ? row.name.trim() : ''))
+    .filter(Boolean)
+  const isPeriodDay = dailyLogRes.data?.period_day === true
   const dietaryRestriction = normalizeProfileValue(profileRes.data?.reason ?? null)
-  const cacheKey = `${authResult.userId}:${today}:${conditionName ?? 'none'}:${dietaryRestriction ?? 'none'}:${safeFoods.join('|')}`
+  const cacheKey = `${authResult.userId}:${today}:${conditionName ?? 'none'}:${dietaryRestriction ?? 'none'}:${isPeriodDay ? 'period' : 'no-period'}:${safeFoods.join('|')}:${triggerFoods.join('|')}`
   const cached = cacheMap.get(cacheKey)
 
   if (cached && cached.expiresAt > Date.now()) {
@@ -90,6 +109,8 @@ export async function GET(req: NextRequest) {
       conditionName,
       dietaryRestriction,
       safeFoods,
+      triggerFoods,
+      isPeriodDay,
     })
 
     cacheMap.set(cacheKey, {

@@ -6,6 +6,8 @@ export type SupportMealPlanContext = {
   conditionName: string | null
   dietaryRestriction: string | null
   safeFoods: string[]
+  triggerFoods: string[]
+  isPeriodDay: boolean
 }
 
 export type SupportMealPlanResult = {
@@ -39,6 +41,53 @@ type ConditionMealProfile = {
     snack: string[]
   }
   focusPoints: string[]
+}
+
+const PERIOD_SUPPORT_PROFILE: ConditionMealProfile = {
+  supportiveFoods: [
+    'lean beef',
+    'turkey',
+    'salmon',
+    'sardines',
+    'lentils',
+    'tofu',
+    'eggs',
+    'spinach',
+    'pumpkin seeds',
+    'oats',
+    'sweet potato',
+    'berries',
+    'oranges',
+    'kiwi',
+    'yogurt',
+  ],
+  mealPatterns: {
+    breakfast: [
+      'iron-support oatmeal with berries and pumpkin seeds',
+      'eggs with sauteed spinach and toast',
+      'yogurt bowl with oats, berries, and chia',
+    ],
+    lunch: [
+      'salmon grain bowl with spinach and roasted sweet potato',
+      'turkey and lentil soup with cooked vegetables',
+      'tofu rice bowl with spinach and citrus fruit',
+    ],
+    dinner: [
+      'baked salmon with potatoes and greens',
+      'turkey rice plate with cooked spinach',
+      'tofu and quinoa bowl with roasted vegetables',
+    ],
+    snack: [
+      'trail mix with pumpkin seeds and dried fruit',
+      'yogurt with berries',
+      'banana with nut butter',
+    ],
+  },
+  focusPoints: [
+    'Lean toward iron-rich meals and pair them with vitamin C foods when that fits your usual tolerance.',
+    'Keep hydration steady and include enough protein so energy stays more stable through the day.',
+    'If cramps or nausea make food harder, use smaller gentler meals instead of skipping entirely.',
+  ],
 }
 
 const client = new OpenAI({
@@ -219,59 +268,117 @@ function uniqueFoods(values: string[]): string[] {
   return [...new Set(values.map((item) => item.trim()).filter(Boolean))]
 }
 
+function filterTriggersFromList(values: string[], triggerFoods: string[]): string[] {
+  const normalizedTriggers = uniqueFoods(triggerFoods).map((item) => item.toLowerCase())
+  if (normalizedTriggers.length === 0) return values
+
+  return values.filter((value) => {
+    const normalizedValue = value.toLowerCase()
+    return !normalizedTriggers.some((trigger) => trigger && normalizedValue.includes(trigger))
+  })
+}
+
+function mergeProfiles(base: ConditionMealProfile, addition: ConditionMealProfile): ConditionMealProfile {
+  return {
+    supportiveFoods: uniqueFoods([...base.supportiveFoods, ...addition.supportiveFoods]),
+    mealPatterns: {
+      breakfast: [...base.mealPatterns.breakfast, ...addition.mealPatterns.breakfast],
+      lunch: [...base.mealPatterns.lunch, ...addition.mealPatterns.lunch],
+      dinner: [...base.mealPatterns.dinner, ...addition.mealPatterns.dinner],
+      snack: [...base.mealPatterns.snack, ...addition.mealPatterns.snack],
+    },
+    focusPoints: [...base.focusPoints, ...addition.focusPoints],
+  }
+}
+
+function pickMealPattern(items: string[], fallbackItems: string[], seed: number): string {
+  const source = items.length > 0 ? items : fallbackItems
+  return source[seed % source.length]
+}
+
+function buildFocusPoints(profile: ConditionMealProfile, isPeriodDay: boolean): string[] {
+  if (!isPeriodDay) return profile.focusPoints.slice(0, 3)
+
+  const periodFirst = [
+    ...PERIOD_SUPPORT_PROFILE.focusPoints,
+    ...profile.focusPoints.filter((item) => !PERIOD_SUPPORT_PROFILE.focusPoints.includes(item)),
+  ]
+
+  return periodFirst.slice(0, 3)
+}
+
 function buildFallbackMealPlan(context: SupportMealPlanContext): SupportMealPlanResult {
   const conditionKey = inferConditionKey(context.conditionName, context.dietaryRestriction)
-  const profile = (conditionKey && CONDITION_PROFILES[conditionKey]) || DEFAULT_PROFILE
+  const baseProfile = (conditionKey && CONDITION_PROFILES[conditionKey]) || DEFAULT_PROFILE
+  const profile = context.isPeriodDay ? mergeProfiles(baseProfile, PERIOD_SUPPORT_PROFILE) : baseProfile
   const safeFoods = uniqueFoods(context.safeFoods)
-  const seed = hashString(`${context.today}:${conditionKey ?? 'default'}:${safeFoods.join('|')}`)
+  const triggerFoods = uniqueFoods(context.triggerFoods)
+  const filteredMealPatterns = {
+    breakfast: filterTriggersFromList(profile.mealPatterns.breakfast, triggerFoods),
+    lunch: filterTriggersFromList(profile.mealPatterns.lunch, triggerFoods),
+    dinner: filterTriggersFromList(profile.mealPatterns.dinner, triggerFoods),
+    snack: filterTriggersFromList(profile.mealPatterns.snack, triggerFoods),
+  }
+  const filteredSupportiveFoods = filterTriggersFromList(profile.supportiveFoods, triggerFoods)
+  const safeFoodsWithoutTriggers = filterTriggersFromList(safeFoods, triggerFoods)
+  const seed = hashString(
+    `${context.today}:${conditionKey ?? 'default'}:${context.isPeriodDay ? 'period' : 'standard'}:${safeFoodsWithoutTriggers.join('|')}:${triggerFoods.join('|')}`
+  )
 
-  const safeFoodHighlights = rotatePick(safeFoods, seed, 4)
-  const breakfastBase = profile.mealPatterns.breakfast[seed % profile.mealPatterns.breakfast.length]
-  const lunchBase = profile.mealPatterns.lunch[(seed + 1) % profile.mealPatterns.lunch.length]
-  const dinnerBase = profile.mealPatterns.dinner[(seed + 2) % profile.mealPatterns.dinner.length]
-  const snackBase = profile.mealPatterns.snack[(seed + 3) % profile.mealPatterns.snack.length]
+  const safeFoodHighlights = rotatePick(safeFoodsWithoutTriggers, seed, 4)
+  const breakfastBase = pickMealPattern(filteredMealPatterns.breakfast, profile.mealPatterns.breakfast, seed)
+  const lunchBase = pickMealPattern(filteredMealPatterns.lunch, profile.mealPatterns.lunch, seed + 1)
+  const dinnerBase = pickMealPattern(filteredMealPatterns.dinner, profile.mealPatterns.dinner, seed + 2)
+  const snackBase = pickMealPattern(filteredMealPatterns.snack, profile.mealPatterns.snack, seed + 3)
 
-  const supportiveFoods = rotatePick(profile.supportiveFoods, seed + 5, 5)
+  const supportiveFoods = rotatePick(filteredSupportiveFoods.length > 0 ? filteredSupportiveFoods : profile.supportiveFoods, seed + 5, 5)
   const titleCondition = context.conditionName?.trim() || 'your current needs'
   const safeFoodText =
     safeFoodHighlights.length > 0
       ? ` Built around foods you have logged as safe, like ${safeFoodHighlights.join(', ')}.`
       : ''
+  const triggerFoodText =
+    triggerFoods.length > 0
+      ? ` It also avoids foods you have marked as triggers, like ${triggerFoods.slice(0, 3).join(', ')}.`
+      : ''
+  const periodText = context.isPeriodDay
+    ? ' Today also leans toward meals that can help replenish iron, fluids, and steady energy during your period.'
+    : ''
 
   return {
-    title: `Daily meal plan for ${titleCondition}`,
-    summary: `A fresh daily plan using gentler, condition-aware meals with enough structure for both symptom support and general nutrition.${safeFoodText}`,
+    title: context.isPeriodDay ? `Period-support meal plan for ${titleCondition}` : `Daily meal plan for ${titleCondition}`,
+    summary: `A fresh daily plan using gentler, condition-aware meals with enough structure for both symptom support and general nutrition.${periodText}${safeFoodText}${triggerFoodText}`,
     meals: [
       {
         mealType: 'breakfast',
         name: breakfastBase,
         whyItFits: safeFoodHighlights[0]
-          ? `Uses a familiar safe-food direction and keeps breakfast simple around ${safeFoodHighlights[0]}.`
-          : `Keeps breakfast simple and based on generally supportive foods like ${supportiveFoods.slice(0, 2).join(' and ')}.`,
+          ? `Uses a familiar safe-food direction and keeps breakfast simple around ${safeFoodHighlights[0]}${context.isPeriodDay ? ' while adding period-supportive nutrition.' : '.'}`
+          : `Keeps breakfast simple and based on generally supportive foods like ${supportiveFoods.slice(0, 2).join(' and ')}${context.isPeriodDay ? ' to help support energy and replenishment.' : '.'}`,
       },
       {
         mealType: 'lunch',
         name: lunchBase,
         whyItFits: safeFoodHighlights[1]
-          ? `Leans on your logged tolerances while keeping lunch balanced and easier to repeat consistently.`
-          : `Balances protein, tolerated carbs, and gentler ingredients for a steadier midday meal.`,
+          ? `Leans on your logged tolerances while keeping lunch balanced and easier to repeat consistently${context.isPeriodDay ? ' on a period day' : ''}.`
+          : `Balances protein, tolerated carbs, and gentler ingredients for a steadier midday meal${context.isPeriodDay ? ' with extra attention to replenishment-friendly foods' : ''}.`,
       },
       {
         mealType: 'dinner',
         name: dinnerBase,
         whyItFits: safeFoodHighlights[2]
-          ? `Keeps dinner grounded in foods similar to what you already tolerate well.`
-          : `Uses milder, condition-aware dinner staples that are often easier to build around.`,
+          ? `Keeps dinner grounded in foods similar to what you already tolerate well${context.isPeriodDay ? ' while nudging toward iron- and protein-supportive choices' : ''}.`
+          : `Uses milder, condition-aware dinner staples that are often easier to build around${context.isPeriodDay ? ' while supporting recovery from the day' : ''}.`,
       },
       {
         mealType: 'snack',
         name: snackBase,
         whyItFits: safeFoodHighlights[3]
-          ? `Adds a simple snack option so you can stay consistent without reaching for a less predictable choice.`
-          : `Gives you a lighter snack option that fits the same daily pattern.`,
+          ? `Adds a simple snack option so you can stay consistent without reaching for a less predictable choice${context.isPeriodDay ? ' when appetite or energy shifts' : ''}.`
+          : `Gives you a lighter snack option that fits the same daily pattern${context.isPeriodDay ? ' and helps avoid long gaps without food' : ''}.`,
       },
     ],
-    focusPoints: profile.focusPoints,
+    focusPoints: buildFocusPoints(profile, context.isPeriodDay),
   }
 }
 
@@ -282,7 +389,9 @@ function buildSystemPrompt(): string {
     'Use the user condition, dietary restriction, and foods they have logged as safe.',
     'Favor meals that are realistic for one day: breakfast, lunch, dinner, and snack.',
     'Use safe foods when they fit naturally, but do not repeat the same exact ingredient in every meal.',
+    'Avoid foods the user has logged as trigger foods.',
     'Blend personal safe foods with generally supportive foods for the condition.',
+    'If the user is on their period, tilt toward foods that can help replenish iron, fluids, protein, magnesium, and steady energy while staying practical and condition-aware.',
     'Avoid foods that are commonly poor fits for the condition unless the user explicitly marked them safe and the meal still makes sense.',
     'Do not mention being an AI.',
     'Do not diagnose or claim certainty.',
@@ -297,6 +406,8 @@ function buildUserPrompt(context: SupportMealPlanContext): string {
     '- Give the user a full day of meal options that can help them stay inside one app for both condition support and nutrition planning.',
     '- Make the plan feel fresh day to day, not static or templated.',
     '- Personalize using safe foods where possible.',
+    '- Avoid the user\'s trigger foods.',
+    '- If they logged that they are on their period today, prioritize generally supportive period-day foods while still respecting their condition and known food tolerances.',
     '',
     'Requirements:',
     '- Return exactly 4 meals: breakfast, lunch, dinner, and snack.',
@@ -307,7 +418,9 @@ function buildUserPrompt(context: SupportMealPlanContext): string {
     '',
     `Condition: ${context.conditionName ?? 'None specified'}`,
     `Dietary restriction: ${context.dietaryRestriction ?? 'None specified'}`,
+    `Period day today: ${context.isPeriodDay ? 'Yes' : 'No'}`,
     `Safe foods logged by user: ${context.safeFoods.length > 0 ? context.safeFoods.join(', ') : 'None logged yet'}`,
+    `Trigger foods logged by user: ${context.triggerFoods.length > 0 ? context.triggerFoods.join(', ') : 'None logged yet'}`,
   ].join('\n')
 }
 
