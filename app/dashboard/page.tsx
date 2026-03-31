@@ -964,50 +964,50 @@ export default function DashboardPage() {
             </p> */}
           </>
         ) : (
-          <div className="relative overflow-hidden rounded-2xl border border-dashed border-green-300 bg-white/80 p-4">
-            <div className="pointer-events-none space-y-4 opacity-45 blur-[2px] select-none">
-              <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-                {LOCKED_MACRO_PREVIEW.map((item) => (
-                  <div key={item.label} className="rounded-2xl border border-green-200 bg-white p-4 shadow-sm">
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <div className="rounded-2xl border border-green-200 bg-white/90 p-4 shadow-sm">
+                <p className="text-sm text-gray-600">Calories</p>
+                <p className="mt-2 text-3xl font-semibold text-gray-950">
+                  {isDashboardDataLoading ? '-' : formatMacroValue(dailyMacroTotals.calories, 0)}
+                </p>
+                <p className="mt-1 text-xs uppercase tracking-[0.18em] text-gray-500">Calories Today</p>
+              </div>
+              {LOCKED_MACRO_PREVIEW.slice(1).map((item) => (
+                <div key={item.label} className="relative overflow-hidden rounded-2xl border border-dashed border-green-300 bg-white/80 p-4">
+                  <div className="pointer-events-none opacity-40 blur-[2px] select-none">
                     <p className="text-sm text-gray-600">{item.label}</p>
                     <p className="mt-2 text-3xl font-semibold text-gray-950">
                       {item.value}
                       <span className="ml-1 text-lg font-medium text-gray-500">{item.unit}</span>
                     </p>
                   </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-green-200 bg-white px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Fiber</p>
-                  <p className="mt-1 text-lg font-semibold text-gray-900">24g</p>
+                  <div className="absolute inset-0 flex items-center justify-center bg-white/70 p-3">
+                    <p className="text-center text-xs font-semibold uppercase tracking-[0.16em] text-green-700">
+                      Premium only
+                    </p>
+                  </div>
                 </div>
-                <div className="rounded-xl border border-green-200 bg-white px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Sugar</p>
-                  <p className="mt-1 text-lg font-semibold text-gray-900">41g</p>
-                </div>
-                <div className="rounded-xl border border-green-200 bg-white px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-500">Sodium</p>
-                  <p className="mt-1 text-lg font-semibold text-gray-900">2,180mg</p>
-                </div>
-              </div>
+              ))}
             </div>
 
-            <div className="absolute inset-0 flex items-center justify-center bg-white/65 p-5">
-              <div className="max-w-md rounded-2xl border border-green-200 bg-white px-5 py-4 text-center shadow-lg">
-                <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-green-100 text-green-800">
+            <div className="rounded-2xl border border-dashed border-green-300 bg-green-50/70 p-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-green-800">
                   <IconLock size={20} />
                 </div>
-                <h3 className="mt-3 text-lg font-semibold text-gray-950">Upgrade to unlock daily macro tracking</h3>
-                <p className="mt-2 text-sm leading-6 text-gray-600">
-                  Premium shows your real daily calories, protein, carbs, fat, and more from the foods you&apos;ve logged.
-                </p>
-                <Link
-                  href="/settings"
-                  className="mt-4 inline-flex items-center justify-center rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-green-700"
-                >
-                  Upgrade your plan
-                </Link>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-950">Upgrade to unlock full macro tracking</h3>
+                  <p className="mt-2 text-sm leading-6 text-gray-600">
+                    Free shows today&apos;s calories. Premium unlocks protein, carbs, fat, fiber, sugar, and sodium from the foods you&apos;ve logged.
+                  </p>
+                  <Link
+                    href="/settings"
+                    className="mt-4 inline-flex items-center justify-center rounded-full bg-green-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-green-700"
+                  >
+                    Upgrade your plan
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
