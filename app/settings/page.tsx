@@ -1,5 +1,6 @@
 'use client'
 import React, { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { useProfile } from '@/src/context/ProfileContext'
 import { Avatar, Callout } from '@radix-ui/themes'
 import { IconInfoCircle, IconPhotoEdit, IconTrashX } from '@tabler/icons-react'
@@ -17,6 +18,7 @@ const INPUT_CLASS =
 
 const Settings = () => {
   const { profile, loading, updateProfile } = useProfile()
+  const router = useRouter()
 
 
 
@@ -31,6 +33,8 @@ const Settings = () => {
   const [sendingPasswordReset, setSendingPasswordReset] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deletingAccount, setDeletingAccount] = useState(false)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
@@ -136,6 +140,48 @@ const Settings = () => {
       setMessage('We could not send a password reset email right now.')
     } finally {
       setSendingPasswordReset(false)
+    }
+  }
+
+  const handleDeleteAccount = async () => {
+    if (!profile) return
+
+    if (deleteConfirmText.trim() !== 'DELETE') {
+      setMessage('Type DELETE exactly to confirm account deletion.')
+      return
+    }
+
+    try {
+      setDeletingAccount(true)
+      setMessage(null)
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session?.access_token) {
+        throw new Error('You must be signed in to delete your account.')
+      }
+
+      const response = await fetch('/api/account/delete', {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      })
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string }
+        throw new Error(payload.error ?? 'Could not delete your account right now.')
+      }
+
+      await supabase.auth.signOut()
+      router.replace('/')
+    } catch (err) {
+      console.error(err)
+      setMessage(err instanceof Error ? err.message : 'Could not delete your account right now.')
+    } finally {
+      setDeletingAccount(false)
     }
   }
 
@@ -435,6 +481,49 @@ const deleteAvatar = async () => {
             </div>
           </div>
         </div>
+
+        <section className="rounded-3xl border border-red-200 bg-white p-6 shadow-sm md:p-7">
+          <div className="flex flex-col gap-2 border-b border-red-100 pb-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900">Delete Account</h2>
+              <p className="text-sm text-gray-600">
+                Permanently remove your account and delete your saved health logs, meals, foods, community content, and profile data.
+              </p>
+            </div>
+            <div className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">
+              This action cannot be undone
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-4">
+            <p className="max-w-3xl text-sm leading-6 text-gray-600">
+              To protect against accidental deletion, type <span className="font-semibold text-gray-900">DELETE</span> below, then confirm. Your
+              database records will be deleted before your sign-in account is removed.
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-800">Type DELETE to confirm</label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                className="w-full rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm text-gray-800 shadow-sm transition-all outline-none focus:border-red-400 focus:ring-2 focus:ring-red-100"
+                placeholder="DELETE"
+              />
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-red-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount || deleteConfirmText.trim() !== 'DELETE'}
+                className="inline-flex items-center justify-center rounded-xl bg-red-600 px-5 py-2.5 text-sm font-medium text-white shadow-md transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50 w-full sm:w-auto"
+              >
+                {deletingAccount ? 'Deleting account...' : 'Delete my account'}
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   )
