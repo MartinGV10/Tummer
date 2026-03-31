@@ -76,6 +76,7 @@ export default function Signup() {
       }
 
       const user = signUpData.user
+      const session = signUpData.session
 
       if (!user) {
         setMessage('Account created. Check your email for the next step.')
@@ -111,7 +112,6 @@ export default function Signup() {
         }
       }
 
-      setMessage('Account created successfully. Redirecting to your dashboard...')
       setEmail('')
       setPassword('')
       setConfirmPassword('')
@@ -121,8 +121,15 @@ export default function Signup() {
       setGender('')
       setConditionId('')
 
+      if (!session) {
+        setMessage('Account created. Check your email to confirm your account, then log in.')
+        return
+      }
+
+      setMessage('Account created successfully. Redirecting to your dashboard...')
+
       setTimeout(() => {
-        router.push('/dashboard')
+        router.replace('/dashboard')
       }, 900)
     })
   }
