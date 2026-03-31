@@ -235,7 +235,7 @@ const Log = () => {
                     <span className="font-medium text-gray-800">Symptoms:</span> {f.common_symptoms || 'No reported symptoms'}
                   </p>
                   <p>
-                    <span className="font-medium text-gray-800">Last Reaction:</span> {f.last_reacted_at || 'No recorded reactions'}
+                    {/* <span className="font-medium text-gray-800">Last Reaction:</span> {f.last_reacted_at || 'No recorded reactions'} */}
                   </p>
                 </div>
               </div>

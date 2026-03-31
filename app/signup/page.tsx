@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { IconArrowNarrowLeft, IconChecklist, IconLeaf, IconShieldCheck, IconSparkles } from '@tabler/icons-react'
 import { supabase } from '@/lib/supabaseClient'
+import { persistConditionRef } from '@/src/shared/conditionRefs'
 import { GENDER_OPTIONS, normalizeGenderValue } from '@/src/shared/profileGender'
 
 type Condition = {
@@ -87,13 +88,27 @@ export default function Signup() {
         last_name: lastName,
         username,
         gender: normalizeGenderValue(gender),
-        condition_id: conditionId || null,
+        condition_id: null,
       })
 
       if (profileError) {
         console.error('Profile creation error:', profileError)
         setError(`Signed up, but we could not finish your profile: ${profileError.message}`)
         return
+      }
+
+      if (conditionId) {
+        const storedConditionId = await persistConditionRef(supabase, user.id, conditionId)
+        const { error: profileConditionError } = await supabase
+          .from('profiles')
+          .update({ condition_id: storedConditionId })
+          .eq('id', user.id)
+
+        if (profileConditionError) {
+          console.error('Profile condition update error:', profileConditionError)
+          setError(`Signed up, but we could not finish your condition setup: ${profileConditionError.message}`)
+          return
+        }
       }
 
       setMessage('Account created successfully. Redirecting to your dashboard...')

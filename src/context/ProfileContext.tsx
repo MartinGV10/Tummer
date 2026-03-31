@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { persistConditionRef, resolveConditionRef } from '@/src/shared/conditionRefs'
 import { normalizeGenderValue } from '@/src/shared/profileGender'
 
 export type Profile = {
@@ -10,6 +11,7 @@ export type Profile = {
   last_name: string
   username: string
   condition_id: string | null
+  condition_ref_id?: string | null
   gender: string | null
   reason: string | null
   avatar_url: string | null
@@ -77,9 +79,14 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         return
       }
 
+      const rawProfile = data as Profile
+      const resolvedCondition = await resolveConditionRef(supabase, rawProfile.condition_id)
+
       setProfile({
-        ...(data as Profile),
-        gender: normalizeGenderValue((data as Profile).gender),
+        ...rawProfile,
+        condition_id: resolvedCondition.actualConditionId,
+        condition_ref_id: resolvedCondition.storedConditionId,
+        gender: normalizeGenderValue(rawProfile.gender),
       })
       setError(null)
     } catch (err) {
@@ -113,13 +120,13 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     // cleanup subscription on unmount
     return () => {
       try {
-        // v2 returns a subscription object under `data.subscription` or `data`
-        // support both shapes defensively
-        // @ts-ignore
-        if (data?.subscription?.unsubscribe) data.subscription.unsubscribe()
-        // @ts-ignore
-        else if (data?.unsubscribe) data.unsubscribe()
-      } catch (e) {
+        const subscriptionContainer = data as
+          | { subscription?: { unsubscribe?: () => void }; unsubscribe?: () => void }
+          | undefined
+
+        if (subscriptionContainer?.subscription?.unsubscribe) subscriptionContainer.subscription.unsubscribe()
+        else if (subscriptionContainer?.unsubscribe) subscriptionContainer.unsubscribe()
+      } catch {
         // ignore cleanup errors
       }
     }
@@ -130,8 +137,15 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       return
     }
 
+    const nextConditionId = data.condition_id === undefined ? undefined : data.condition_id
+    const storedConditionId =
+      nextConditionId === undefined
+        ? undefined
+        : await persistConditionRef(supabase, profile.id, nextConditionId)
+
     const nextValues = {
       ...data,
+      condition_id: storedConditionId,
       gender: data.gender === undefined ? undefined : normalizeGenderValue(data.gender),
     }
 
@@ -146,7 +160,16 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       throw error
     }
 
-    setProfile((prev) => (prev ? { ...prev, ...payload } : prev))
+    setProfile((prev) => (
+      prev
+        ? {
+            ...prev,
+            ...payload,
+            condition_id: nextConditionId === undefined ? prev.condition_id : nextConditionId,
+            condition_ref_id: storedConditionId === undefined ? prev.condition_ref_id : storedConditionId,
+          }
+        : prev
+    ))
   }
 
   return (

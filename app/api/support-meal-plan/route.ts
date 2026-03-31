@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthenticatedBillingUser } from '@/lib/auth'
 import { supabaseAdmin } from '@/lib/supabaseAdmin'
+import { resolveConditionRef } from '@/src/shared/conditionRefs'
 import { generateSupportMealPlan } from '@/src/server/ai/supportMealPlan'
 
 export const dynamic = 'force-dynamic'
@@ -77,15 +78,8 @@ export async function GET(req: NextRequest) {
 
   let conditionName: string | null = null
   if (profileRes.data?.condition_id) {
-    const conditionRes = await supabaseAdmin
-      .from('conditions')
-      .select('name')
-      .eq('id', profileRes.data.condition_id)
-      .maybeSingle<{ name: string | null }>()
-
-    if (!conditionRes.error) {
-      conditionName = normalizeProfileValue(conditionRes.data?.name ?? null)
-    }
+    const resolvedCondition = await resolveConditionRef(supabaseAdmin, profileRes.data.condition_id)
+    conditionName = normalizeProfileValue(resolvedCondition.conditionName ?? null)
   }
 
   const safeFoods = (safeFoodsRes.data ?? [])

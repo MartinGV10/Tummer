@@ -4,15 +4,12 @@ import React, { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { IconLock } from '@tabler/icons-react'
 import { useProfile } from '@/src/context/ProfileContext'
+import { resolveConditionRef } from '@/src/shared/conditionRefs'
 import { supabase } from '@/lib/supabaseClient'
 
 type ProfileMetaRow = {
   condition_id: string | null
   reason: string | null
-}
-
-type ConditionRow = {
-  name: string | null
 }
 
 type ConditionGuide = {
@@ -441,23 +438,18 @@ const Support = () => {
         return
       }
 
-      const conditionRes = await supabase
-        .from('conditions')
-        .select('name')
-        .eq('id', profileMeta.condition_id)
-        .maybeSingle()
+      try {
+        const resolvedCondition = await resolveConditionRef(supabase, profileMeta.condition_id)
 
-      if (!active) return
+        if (!active) return
 
-      if (conditionRes.error || !conditionRes.data) {
+        setConditionName(normalizeProfileInput(resolvedCondition.conditionName ?? null))
+      } catch (error) {
+        if (!active) return
         setConditionName(null)
-        setLoadingGuide(false)
-        if (conditionRes.error) setGuideError(conditionRes.error.message)
-        return
+        setGuideError(error instanceof Error ? error.message : 'Could not load your condition.')
       }
 
-      const condition = conditionRes.data as ConditionRow
-      setConditionName(normalizeProfileInput(condition.name ?? null))
       setLoadingGuide(false)
     }
 

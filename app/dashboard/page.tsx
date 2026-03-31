@@ -8,6 +8,7 @@ import MonthlyReportButton from '@/app/components/MonthlyReportButton'
 import { useProfile } from '@/src/context/ProfileContext'
 import useMeals from '@/src/context/TrackedMealsContext'
 import { supabase } from '@/lib/supabaseClient'
+import { resolveConditionRef } from '@/src/shared/conditionRefs'
 import { DASHBOARD_AI_EMPTY_STATE, hasDashboardInsightInputs } from '@/src/shared/dashboardAi'
 import { formatMacroValue, getMealSearchText, sumMealMacros } from '@/src/shared/meals'
 import { normalizeGenderValue } from '@/src/shared/profileGender'
@@ -62,10 +63,6 @@ type TriggerFoodRow = {
 type ProfileMetaRow = {
   condition_id: string | null
   reason: string | null
-}
-
-type ConditionRow = {
-  name: string
 }
 
 type DashboardAiCache = {
@@ -233,7 +230,7 @@ export default function DashboardPage() {
   const { profile } = useProfile()
   const { meals, loading: loadingMeals } = useMeals()
   const isPremium = Boolean(profile?.is_premium)
-  const availableRanges = isPremium ? PREMIUM_RANGES : [FREE_RANGE]
+  const availableRanges = useMemo(() => (isPremium ? PREMIUM_RANGES : [FREE_RANGE]), [isPremium])
   const [selectedRange, setSelectedRange] = useState<DashboardRangeId>(isPremium ? '14d' : '7d')
 
   const [loadingHealth, setLoadingHealth] = useState(true)
@@ -266,10 +263,6 @@ export default function DashboardPage() {
     if (!profile) return false
     return normalizeGenderValue(profile.gender) !== 'male'
   }, [profile])
-
-  useEffect(() => {
-    setSelectedRange(isPremium ? '14d' : '7d')
-  }, [isPremium])
 
   useEffect(() => {
     let active = true
@@ -395,19 +388,15 @@ export default function DashboardPage() {
         setProfileRestriction(normalizeProfileContextValue(profileMeta.reason ?? profile?.reason ?? null))
 
         if (profileMeta.condition_id) {
-          const conditionRes = await supabase
-            .from('conditions')
-            .select('name')
-            .eq('id', profileMeta.condition_id)
-            .maybeSingle()
+          try {
+            const resolvedCondition = await resolveConditionRef(supabase, profileMeta.condition_id)
 
-          if (!active) return
+            if (!active) return
 
-          if (conditionRes.error || !conditionRes.data) {
+            setProfileCondition(normalizeProfileContextValue(resolvedCondition.conditionName ?? null))
+          } catch {
+            if (!active) return
             setProfileCondition(null)
-          } else {
-            const conditionRow = conditionRes.data as ConditionRow
-            setProfileCondition(normalizeProfileContextValue(conditionRow.name ?? null))
           }
         } else {
           setProfileCondition(null)
