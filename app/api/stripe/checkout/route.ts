@@ -52,7 +52,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: session.url })
   } catch (error) {
-    console.error('Stripe checkout session error:', error)
+    console.error('Stripe checkout session error:', {
+      message: error instanceof Error ? error.message : 'Unknown server error',
+      type: typeof error === 'object' && error !== null && 'type' in error ? String((error as { type?: unknown }).type) : undefined,
+      code: typeof error === 'object' && error !== null && 'code' in error ? String((error as { code?: unknown }).code) : undefined,
+      param: typeof error === 'object' && error !== null && 'param' in error ? String((error as { param?: unknown }).param) : undefined,
+    })
 
     const details =
       error instanceof Error
