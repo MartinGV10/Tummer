@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from 'next/script'
 import { Theme, ThemePanel } from '@radix-ui/themes'
 import "./globals.css";
 import Nav from "./Nav";
@@ -22,6 +23,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2129630041401316"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
+      </head>
       <body className={`${generalSans.className} antialiased `}>
       <Theme accentColor="grass" radius="large" className={`${generalSans.className}`}>
         {/* <ThemePanel></ThemePanel> */}
