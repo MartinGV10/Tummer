@@ -91,6 +91,19 @@ const LogHealth = () => {
     return toLocalDateKey(date)
   }, [date])
 
+  const visibleBowels = useMemo(() => {
+    if (!selectedDateKey) return []
+
+    return bowels.filter((entry) => {
+      if (!entry.occurred_at) return true
+
+      const occurredAt = new Date(entry.occurred_at)
+      if (Number.isNaN(occurredAt.getTime())) return true
+
+      return toLocalDateKey(occurredAt) === selectedDateKey
+    })
+  }, [bowels, selectedDateKey])
+
   const showPeriodDay = useMemo(() => {
     if (!profile) return false
     return normalizeGenderValue(profile.gender) !== 'male'
@@ -765,7 +778,7 @@ const LogHealth = () => {
                   </summary>
                   <div className="absolute left-0 top-full z-20 mt-2 w-[16.5rem] rounded-xl border border-green-200 bg-white p-3.5 shadow-lg sm:w-[18.5rem]">
                     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-green-700">Bristol Stool Chart</p>
-                    <div className="mt-2.5 space-y-1.5 text-sm leading-5 text-gray-700">
+                    <div className="mt-2.5  text-sm leading-5 text-gray-700">
                       {BRISTOL_TYPE_GUIDE.map((item) => (
                         <p key={item.type}>
                           <span className="font-semibold text-gray-900">Type {item.type}:</span> {item.label}. {item.note}
@@ -851,8 +864,8 @@ const LogHealth = () => {
             )}
 
             <div className="pt-1 space-y-2">
-              <p className="text-xs text-gray-600">Entries this day: {bowels.length}</p>
-              {bowels.map((b) => (
+              <p className="text-xs text-gray-600">Entries this day: {visibleBowels.length}</p>
+              {visibleBowels.map((b) => (
                 <div key={b.id} className="flex items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 px-2 py-1">
                   <p className="text-sm text-gray-700">
                     Bristol: {b.bristol_type ?? '-'} | Urgency: {b.urgency_level ?? '-'}
