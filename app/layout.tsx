@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
-import Script from 'next/script'
-import { Theme, ThemePanel } from '@radix-ui/themes'
+import { Theme } from '@radix-ui/themes'
 import "./globals.css";
-import Nav from "./Nav";
 import "@radix-ui/themes/styles.css";
-import Footer from "./Footer";
 import { ProfileProvider } from "@/src/context/ProfileContext";
-import  { generalSans } from './fonts'
+import { generalSans } from './fonts'
 import { FoodProvider } from "@/src/context/LoggedFoodContext";
 import { MealProvider } from "@/src/context/TrackedMealsContext";
 import { HealthProvider } from "@/src/context/HealthContext";
@@ -24,26 +21,24 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <Script
+        <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2129630041401316"
           crossOrigin="anonymous"
-          strategy="afterInteractive"
         />
       </head>
-      <body className={`${generalSans.className} antialiased `}>
-      <Theme accentColor="grass" radius="large" className={`${generalSans.className}`}>
-        {/* <ThemePanel></ThemePanel> */}
-        <ProfileProvider>
-          <FoodProvider>
-            <MealProvider>
-              <HealthProvider>
-                <main>{children}</main>
-              </HealthProvider>
-            </MealProvider>
-          </FoodProvider>
-        </ProfileProvider>
-      </Theme>
+      <body className={`${generalSans.className} antialiased`}>
+        <Theme accentColor="grass" radius="large" className={generalSans.className}>
+          <ProfileProvider>
+            <FoodProvider>
+              <MealProvider>
+                <HealthProvider>
+                  <main>{children}</main>
+                </HealthProvider>
+              </MealProvider>
+            </FoodProvider>
+          </ProfileProvider>
+        </Theme>
       </body>
     </html>
   );
