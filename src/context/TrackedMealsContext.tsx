@@ -30,7 +30,8 @@ type MealsContextType = {
   }) => Promise<Meal | null>
   updateMeal: (
     mealId: string,
-    data: Partial<Pick<Meal, 'meal_name' | 'meal_type' | 'eaten_at' | 'notes'>> & {
+    data: Partial<Pick<Meal, 'meal_name' | 'meal_type' | 'notes'>> & {
+      eaten_at?: string | Date
       meal_items?: MealItemInput[]
     }
   ) => Promise<void>
@@ -65,7 +66,34 @@ type MealInsertPayload = {
   eaten_at?: string
 }
 
-type MealUpdatePayload = Partial<Pick<Meal, 'meal_name' | 'meal_type' | 'eaten_at' | 'notes'>>
+type MealUpdatePayload = Partial<Pick<Meal, 'meal_name' | 'meal_type' | 'notes'>> & {
+  eaten_at?: string
+}
+
+function normalizeMealItem(item: RawMealItem): MealItem {
+  return {
+    id: String(item.id ?? ''),
+    meal_id: String(item.meal_id ?? ''),
+    user_id: String(item.user_id ?? ''),
+    position: Number(item.position ?? 0),
+    food_name: String(item.food_name ?? ''),
+    brand_name: item.brand_name ?? null,
+    serving_description: item.serving_description ?? null,
+    quantity: Number(item.quantity ?? 1),
+    unit: item.unit ?? null,
+    fdc_id: item.fdc_id == null ? null : Number(item.fdc_id),
+    data_type: item.data_type ?? null,
+    calories: Number(item.calories ?? 0),
+    protein_g: Number(item.protein_g ?? 0),
+    carbs_g: Number(item.carbs_g ?? 0),
+    fat_g: Number(item.fat_g ?? 0),
+    fiber_g: Number(item.fiber_g ?? 0),
+    sugar_g: Number(item.sugar_g ?? 0),
+    sodium_mg: Number(item.sodium_mg ?? 0),
+    created_at: String(item.created_at ?? ''),
+    updated_at: String(item.updated_at ?? ''),
+  }
+}
 
 function normalizeMeal(raw: RawMeal): Meal {
   const items = Array.isArray(raw?.meal_items) ? raw.meal_items : []
@@ -73,20 +101,8 @@ function normalizeMeal(raw: RawMeal): Meal {
   return {
     ...raw,
     meal_items: items
-      .map((item) => ({
-        ...item,
-        position: Number(item?.position ?? 0),
-        quantity: Number(item?.quantity ?? 1),
-        fdc_id: item?.fdc_id == null ? null : Number(item.fdc_id),
-        calories: Number(item?.calories ?? 0),
-        protein_g: Number(item?.protein_g ?? 0),
-        carbs_g: Number(item?.carbs_g ?? 0),
-        fat_g: Number(item?.fat_g ?? 0),
-        fiber_g: Number(item?.fiber_g ?? 0),
-        sugar_g: Number(item?.sugar_g ?? 0),
-        sodium_mg: Number(item?.sodium_mg ?? 0),
-      }))
-      .sort((a: MealItem, b: MealItem) => a.position - b.position),
+      .map(normalizeMealItem)
+      .sort((a, b) => a.position - b.position),
   }
 }
 
@@ -282,12 +298,11 @@ export function MealProvider({ children }: { children: React.ReactNode }) {
 
       setError(null)
 
-      const payload: MealUpdatePayload = { ...data }
-      const mealItems = Array.isArray(payload.meal_items) ? payload.meal_items : undefined
-      delete payload.meal_items
-
-      if (payload.eaten_at instanceof Date) {
-        payload.eaten_at = payload.eaten_at.toISOString()
+      const { meal_items, ...rest } = data
+      const mealItems = Array.isArray(meal_items) ? meal_items : undefined
+      const payload: MealUpdatePayload = {
+        ...rest,
+        eaten_at: rest.eaten_at instanceof Date ? rest.eaten_at.toISOString() : rest.eaten_at,
       }
 
       const { error } = await supabase

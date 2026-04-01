@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Theme, ThemePanel } from '@radix-ui/themes'
-import { Figtree } from "next/font/google";
 import "./globals.css";
 import Nav from "./Nav";
 import "@radix-ui/themes/styles.css";
@@ -10,10 +9,6 @@ import  { generalSans } from './fonts'
 import { FoodProvider } from "@/src/context/LoggedFoodContext";
 import { MealProvider } from "@/src/context/TrackedMealsContext";
 import { HealthProvider } from "@/src/context/HealthContext";
-
-const figtree = Figtree({
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: "Tummer",
