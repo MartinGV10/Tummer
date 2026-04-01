@@ -35,7 +35,7 @@ import {
 const Community = () => {
   const { profile } = useProfile()
   const [content, setContent] = useState('')
-  const [selectedConditionId, setSelectedConditionId] = useState<string | null>(null)
+  const [selectedConditionId, setSelectedConditionId] = useState<string | null | undefined>(undefined)
   const [selectedPostType, setSelectedPostType] = useState('')
   const [posts, setPosts] = useState<CommunityPost[]>([])
   const [conditions, setConditions] = useState<Condition[]>([])
@@ -288,7 +288,10 @@ const Community = () => {
   }, [profile?.id])
 
   const remainingChars = POST_CHAR_LIMIT - content.length
-  const composerConditionId = selectedConditionId ?? profile?.condition_id ?? ''
+  const composerConditionId =
+    selectedConditionId === undefined
+      ? profile?.condition_id ?? ''
+      : selectedConditionId ?? ''
   const canSubmit =
     content.trim().length > 0 &&
     content.length <= POST_CHAR_LIMIT &&
@@ -298,7 +301,7 @@ const Community = () => {
   const resetComposer = () => {
     setContent('')
     setSelectedPostType('')
-    setSelectedConditionId(null)
+    setSelectedConditionId(undefined)
     setEditingPostId(null)
     setSubmitError(null)
   }
