@@ -1,6 +1,6 @@
 # Tummer
 
-**Tummer** is a personalized chronic illness management platform that helps users track symptoms, log meals, identify trigger foods, and gain insights into how diet and lifestyle impact their health.
+**Tummer** is a personalized chronic illness management platform that helps users track symptoms, log meals, identify trigger foods, share community posts, and gain insights into how diet and lifestyle impact their health.
 
 The platform is designed for individuals with **chronic illnesses, food sensitivities, or dietary restrictions** who want a structured way to monitor their health and discover patterns over time.
 
@@ -29,7 +29,7 @@ This allows users to track trends and better understand how lifestyle factors im
 
 ### Meal Logging
 
-Users can log meals throughout the day to build a history of what they’ve eaten.
+Users can log meals throughout the day to build a history of what they've eaten.
 
 Each meal entry can include:
 
@@ -65,11 +65,45 @@ This creates a personalized food database unique to each user.
 
 Users can log symptoms and digestive events throughout the day to provide more context to their health data.
 
+Bowel entries can be timestamped for a specific occurrence time, and the log view only shows bowel entries that belong to the currently selected day.
+
 This data contributes to identifying patterns between:
 
 - Food
 - Symptoms
 - Daily health metrics
+
+---
+
+### Community Feed & Public Profiles
+
+Users can participate in a community feed where they can:
+
+- Share questions, advice, tips, experiences, and flare updates
+- Like posts and reply to other members
+- Optionally add a condition tag to a post
+- Leave a post untagged with `No condition tag`
+
+Community profiles include:
+
+- Display name and username
+- Post history
+- Optional public condition visibility
+
+Users can choose in settings whether their selected condition appears on their public profile.
+
+---
+
+### Profile & Account Settings
+
+Users can manage account and profile preferences such as:
+
+- Name and username
+- Avatar
+- Gender
+- Condition selection
+- Whether their condition is shown on their public profile
+- Email and password management
 
 ---
 
@@ -89,11 +123,11 @@ The goal is to help users better understand **why symptoms occur**, not just tra
 
 **Frontend**
 
-- Next.js  
-- React  
-- TypeScript  
-- Tailwind CSS  
-- Radix UI  
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- Radix UI
 
 **Backend / Data**
 
@@ -147,7 +181,6 @@ The goal of Tummer is to:
 
 Planned features include:
 
-- Community support system
 - Advanced analytics dashboards
 - Pattern detection for trigger foods
 - Health report generation
@@ -158,7 +191,7 @@ Planned features include:
 
 ## Author
 
-**Martin Ganen**  
-Computer Science Student — University of South Florida
+**Martin Ganen**
+Computer Science Student - University of South Florida
 
 Interested in building tools that combine **data, health, and user experience** to solve real-world problems.
