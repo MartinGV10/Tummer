@@ -28,6 +28,7 @@ const Settings = () => {
   const [username, setUsername] = useState('')
   const [gender, setGender] = useState('')
   const [conditionId, setConditionId] = useState('')
+  const [showConditionOnProfile, setShowConditionOnProfile] = useState(false)
   const [conditions, setConditions] = useState<Condition[]>([])
   const [saving, setSaving] = useState(false)
   const [sendingPasswordReset, setSendingPasswordReset] = useState(false)
@@ -44,6 +45,7 @@ const Settings = () => {
       setUsername(profile.username ?? '')
       setGender(normalizeGenderValue(profile.gender) ?? '')
       setConditionId(profile.condition_id ?? '')
+      setShowConditionOnProfile(Boolean(profile.show_condition_on_profile))
     }
     
     const loadEmail = async () => {
@@ -101,6 +103,7 @@ const Settings = () => {
         last_name: lastname,
         username: username,
         condition_id: conditionId || null,
+        show_condition_on_profile: showConditionOnProfile,
         gender: normalizeGenderValue(gender),
       })
 
@@ -395,6 +398,23 @@ const deleteAvatar = async () => {
                         <option key={condition.id} value={condition.id}>{condition.name}</option>
                       ))}
                     </select>
+                  </div>
+
+                  <div className="md:col-span-2">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-green-100 bg-green-50/60 p-4">
+                      <input
+                        type="checkbox"
+                        checked={showConditionOnProfile}
+                        onChange={(e) => setShowConditionOnProfile(e.target.checked)}
+                        className="mt-1 h-4 w-4 rounded border-green-300 text-green-600 focus:ring-green-500"
+                      />
+                      <span>
+                        <span className="block text-sm font-medium text-gray-900">Show my condition on my public profile</span>
+                        <span className="mt-1 block text-sm text-gray-600">
+                          If enabled, other users can see your selected condition on your account page alongside your posts.
+                        </span>
+                      </span>
+                    </label>
                   </div>
                 </div>
 

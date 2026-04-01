@@ -17,6 +17,13 @@ export type ProfileSummary = {
   avatar_url: string | null
 }
 
+export type PublicProfile = ProfileSummary & {
+  first_name: string | null
+  last_name: string | null
+  condition_id: string | null
+  show_condition_on_profile: boolean
+}
+
 export type CommunityPostLikeRow = {
   id: string
   post_id: string
@@ -146,7 +153,11 @@ export async function fetchConditions(): Promise<Record<string, string>> {
 export async function fetchConditionNamesByIds(conditionIds: string[]): Promise<Record<string, string>> {
   if (conditionIds.length === 0) return {}
 
-  const uniqueIds = [...new Set(conditionIds.map((id) => String(id)).filter(Boolean))]
+  const uniqueIds = [...new Set(
+    conditionIds
+      .map((id) => (typeof id === 'string' ? id.trim() : ''))
+      .filter((id) => id.length > 0 && id !== 'null' && id !== 'undefined')
+  )]
   if (uniqueIds.length === 0) return {}
 
   const { data, error } = await supabase
@@ -298,6 +309,33 @@ export function normalizeCommunityComment(row: Partial<CommunityPostCommentRow>)
     parent_id: row.parent_id ?? null,
     created_at: createdAt,
     updated_at: updatedAt,
+  }
+}
+
+export async function fetchPublicProfileByUsername(username: string): Promise<PublicProfile | null> {
+  const trimmedUsername = username.trim()
+  if (!trimmedUsername) return null
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, username, avatar_url, first_name, last_name, condition_id, show_condition_on_profile')
+    .ilike('username', trimmedUsername)
+    .maybeSingle()
+
+  if (error) {
+    console.warn('Error loading public profile:', error)
+    return null
+  }
+
+  if (!data) return null
+
+  const profile = data as PublicProfile
+  return {
+    ...profile,
+    first_name: profile.first_name ?? null,
+    last_name: profile.last_name ?? null,
+    condition_id: profile.condition_id ?? null,
+    show_condition_on_profile: Boolean(profile.show_condition_on_profile),
   }
 }
 

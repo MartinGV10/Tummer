@@ -12,6 +12,7 @@ export type Profile = {
   username: string
   condition_id: string | null
   condition_ref_id?: string | null
+  show_condition_on_profile: boolean
   gender: string | null
   reason: string | null
   avatar_url: string | null
@@ -60,7 +61,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, first_name, last_name, username, condition_id, gender, reason, avatar_url, stripe_customer_id, stripe_subscription_id, subscription_status, subscription_price_id, current_period_end, is_premium')
+        .select('id, first_name, last_name, username, condition_id, show_condition_on_profile, gender, reason, avatar_url, stripe_customer_id, stripe_subscription_id, subscription_status, subscription_price_id, current_period_end, is_premium')
         .eq('id', session.user.id)
         .maybeSingle()
 
@@ -86,6 +87,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         ...rawProfile,
         condition_id: resolvedCondition.actualConditionId,
         condition_ref_id: resolvedCondition.storedConditionId,
+        show_condition_on_profile: Boolean(rawProfile.show_condition_on_profile),
         gender: normalizeGenderValue(rawProfile.gender),
       })
       setError(null)

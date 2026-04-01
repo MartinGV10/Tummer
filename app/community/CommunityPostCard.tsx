@@ -44,6 +44,10 @@ export default function CommunityPostCard({
   const router = useRouter()
   const isOwner = post.user_id === profileId
   const postType = postTypeLabel(post.post_type)
+  const profileHref = post.author?.username?.trim()
+    ? `/profile/${encodeURIComponent(post.author.username.trim())}`
+    : null
+
   const handleOpenPost = () => {
     if (!detailHref) return
     router.push(detailHref)
@@ -68,22 +72,59 @@ export default function CommunityPostCard({
       <div className="border-b border-green-100 px-5 py-4 sm:px-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex min-w-0 items-start gap-3">
-            <Avatar
-              size="4"
-              radius="full"
-              src={getAvatarUrl(post.author?.avatar_url)}
-              fallback={(post.author?.username?.[0] ?? 'U').toUpperCase()}
-              color="green"
-              className="border border-green-200"
-            />
+            {profileHref ? (
+              <Link href={profileHref} onClick={(event) => event.stopPropagation()} className="shrink-0">
+                <Avatar
+                  size="4"
+                  radius="full"
+                  src={getAvatarUrl(post.author?.avatar_url)}
+                  fallback={(post.author?.username?.[0] ?? 'U').toUpperCase()}
+                  color="green"
+                  className="border border-green-200"
+                />
+              </Link>
+            ) : (
+              <Avatar
+                size="4"
+                radius="full"
+                src={getAvatarUrl(post.author?.avatar_url)}
+                fallback={(post.author?.username?.[0] ?? 'U').toUpperCase()}
+                color="green"
+                className="border border-green-200"
+              />
+            )}
+
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <p className="text-sm font-semibold text-gray-900">{displayName(post.author)}</p>
-                <span className="text-xs text-gray-400">@{post.author?.username?.trim() || 'member'}</span>
+                {profileHref ? (
+                  <Link
+                    href={profileHref}
+                    onClick={(event) => event.stopPropagation()}
+                    className="text-sm font-semibold text-gray-900 transition-colors hover:text-green-700"
+                  >
+                    {displayName(post.author)}
+                  </Link>
+                ) : (
+                  <p className="text-sm font-semibold text-gray-900">{displayName(post.author)}</p>
+                )}
+
+                {profileHref ? (
+                  <Link
+                    href={profileHref}
+                    onClick={(event) => event.stopPropagation()}
+                    className="text-xs text-gray-400 transition-colors hover:text-green-700"
+                  >
+                    @{post.author?.username?.trim() || 'member'}
+                  </Link>
+                ) : (
+                  <span className="text-xs text-gray-400">@{post.author?.username?.trim() || 'member'}</span>
+                )}
+
                 <span className="hidden text-xs text-gray-300 sm:inline">•</span>
                 <span className="text-xs text-gray-500">{relativeTime(post.created_at, now)}</span>
                 {post.updated_at !== post.created_at && <span className="text-xs text-gray-400">Edited</span>}
               </div>
+
               <div className="mt-2 flex flex-wrap gap-2">
                 {postType && (
                   <span className="rounded-full bg-green-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-green-800">
