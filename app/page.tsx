@@ -61,7 +61,7 @@ const plans = [
   },
   {
     name: 'Pro',
-    price: '$10',
+    price: '$2',
     cadence: '/month',
     description: 'More context and insight for people who want deeper patterns.',
     features: ['Everything in Free', 'Expanded insights', 'Macro tracking + Meal planning', 'Data export tools'],
@@ -71,7 +71,7 @@ const plans = [
   },
   {
     name: 'Max',
-    price: '$50',
+    price: '$10',
     cadence: '/6 months',
     description: 'A longer-term plan for users committed to sustained tracking.',
     features: ['Everything in Pro', 'Discounted long-term pricing', 'Deeper trend visibility', 'Priority email support'],
